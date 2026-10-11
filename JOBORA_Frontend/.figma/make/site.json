@@ -1,0 +1,10 @@
+{
+  "description": "This platform empowers job seekers by generating tailored CVs, interview prep tests, and personalized training recommendations, enhancing their job search success.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
