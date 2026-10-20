@@ -158,3 +158,24 @@ test("12. MongoDB metadata is never sent back in CV payloads", async () => {
   assert.equal("_id" in result, false)
   assert.equal("__v" in result, false)
 })
+
+test("13. adds the complete example beside an existing draft only once", async () => {
+  const draft = emptyCV()
+  draft.title = "Mon brouillon"
+  localStorage.setItem("ai-recruiter.cvs", JSON.stringify([draft]))
+
+  const firstLoad = await cvService.list()
+  const example = firstLoad.find((item) => item.id === "cv_demo_fullstack")
+
+  assert.equal(firstLoad.length, 2)
+  assert.equal(example?.status, "generated")
+  assert.equal(example?.atsValidation?.status, "PASS")
+
+  await cvService.remove("cv_demo_fullstack")
+  const secondLoad = await cvService.list()
+
+  assert.equal(
+    secondLoad.some((item) => item.id === "cv_demo_fullstack"),
+    false,
+  )
+})
