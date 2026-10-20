@@ -1,0 +1,4 @@
+CV BEST PRACTICES
+Put the target role and the most relevant verified skills near the top. Keep the professional summary concise and tailored only with facts supplied by the candidate. Prefer direct language, consistent tense, and concrete nouns. Avoid first-person pronouns, vague superlatives, keyword stuffing, and unsupported claims.
+
+Preserve candidate facts exactly: employers, institutions, dates, technologies, qualifications, links, and metrics must never be invented or expanded beyond the source data.

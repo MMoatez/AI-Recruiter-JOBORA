@@ -1,0 +1,4 @@
+STANDARD ATS SECTIONS
+Contact information contains name, location, phone, email, and professional links. Professional Summary is two to four concise lines. Experience entries contain job title, company, location, dates, and bullets. Education contains degree, institution, location, dates, and optional factual description. Projects contain name, factual description, technologies, and link. Skills, languages, and certifications use plain text lists.
+
+Empty optional sections should be omitted from the rendered CV rather than filled with invented content.

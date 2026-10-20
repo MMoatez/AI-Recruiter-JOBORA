@@ -1,0 +1,4 @@
+ATS RULES
+Use a single-column document with selectable text. Use standard headings: Professional Summary, Experience, Education, Projects, Technical Skills, Soft Skills, Languages, Certifications. Do not use photos, icons, charts, progress bars, text boxes, or layout tables. Keep contact details in the document body. Use consistent, explicit dates and conventional typography.
+
+ATS compatibility is not a probability and cannot guarantee selection. Any score produced by JOBORA is an internal quality score based on these project rules.

@@ -1,9 +1,4 @@
-import type {
-  AtsValidation,
-  CV,
-  ExperienceEntry,
-  ProjectEntry,
-} from "./types.ts"
+import type { AtsValidation, CV } from "./types.ts"
 
 const STORAGE_KEY = "ai-recruiter.cvs"
 const API_BASE = (
@@ -52,7 +47,17 @@ async function backendRequest(path: string, init: RequestInit = {}) {
 }
 
 function toApiPayload(cv: CV) {
-  const { userId: _userId, createdAt: _createdAt, updatedAt: _updatedAt, ...payload } = cv
+  const value = cv as CV & { _id?: string; __v?: number }
+  const {
+    _id: _mongoId,
+    __v: _mongoVersion,
+    userId: _userId,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    ...payload
+  } = value
+  void _mongoId
+  void _mongoVersion
   void _userId
   void _createdAt
   void _updatedAt
@@ -60,11 +65,14 @@ function toApiPayload(cv: CV) {
 }
 
 function normalizeBackendCV(value: CV & { _id?: string; __v?: number }): CV {
+  const { _id: _mongoId, __v: _mongoVersion, ...cv } = value
+  void _mongoId
+  void _mongoVersion
   return {
-    ...value,
+    ...cv,
     userId: currentUserId(),
-    createdAt: value.createdAt || new Date().toISOString(),
-    updatedAt: value.updatedAt || new Date().toISOString(),
+    createdAt: cv.createdAt || new Date().toISOString(),
+    updatedAt: cv.updatedAt || new Date().toISOString(),
   }
 }
 
@@ -104,7 +112,9 @@ export function emptyCV(): CV {
     languages: [],
     certifications: [],
     atsValidation: null,
-    promptVersion: "CV_PROMPT_003",
+    ragMetadata: null,
+    generatedContent: null,
+    promptVersion: "CV_GENERATE_001_V7",
     status: "draft",
     createdAt: now,
     updatedAt: now,
@@ -207,42 +217,6 @@ function writeAll(records: CV[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
 }
 
-function toBullets(raw: string) {
-  return raw
-    .split(/\n|\.|;/)
-    .map((line) => line.replace(/^[•\-\s]+/, "").trim())
-    .filter(Boolean)
-    .slice(0, 5)
-    .map(
-      (line) =>
-        `${
-          /^(développ|conç|cré|pilot|analys|optim|réalis|particip)/i.test(line)
-            ? ""
-            : "Contribué à "
-        }${line.charAt(0).toLowerCase()}${line.slice(1)}.`,
-    )
-}
-
-function generateProject(project: ProjectEntry) {
-  if (!project.description.trim()) return project
-  const description = project.description.trim().replace(/\s+/g, " ")
-  return {
-    ...project,
-    description:
-      description.charAt(0).toUpperCase() +
-      description.slice(1).replace(/[.!]?$/, "."),
-  }
-}
-
-function safeCandidateText(value: string) {
-  return value
-    .replace(/ignore\s+(all\s+)?(previous|prior)\s+instructions?/gi, "")
-    .replace(/reveal\s+(the\s+)?(system\s+)?prompt/gi, "")
-    .replace(/act\s+as\s+[^.,;]+/gi, "")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-}
-
 export function validateATS(cv: CV): AtsValidation {
   const issues: string[] = []
   if (!cv.professionalSummary.trim())
@@ -275,6 +249,10 @@ export function validateATS(cv: CV): AtsValidation {
       ? issues.map((issue) => issue.replace(/\.$/, ""))
       : ["Le CV respecte les règles internes ATS définies par AI Recruiter."],
   }
+}
+
+export function exportCvToPdf(printDocument: () => void = () => window.print()) {
+  printDocument()
 }
 
 export const cvService = {
@@ -342,30 +320,8 @@ export const cvService = {
         (await remote.json()) as CV & { _id?: string },
       )
     }
-    if (remote && remote.status !== 401) throw new Error(await responseError(remote))
-    await wait(1100)
-    const experiences: ExperienceEntry[] = cv.experiences.map((experience) => ({
-      ...experience,
-      bulletPoints: toBullets(experience.rawDescription),
-    }))
-    const safeObjective = safeCandidateText(cv.careerObjective)
-    const generated: CV = {
-      ...cv,
-      title: cv.title === "CV sans titre" ? `CV ${cv.targetJob}` : cv.title,
-      professionalSummary: safeObjective
-        ? `${cv.targetJob} motivé${
-            cv.personalInformation.firstName.endsWith("e") ? "e" : ""
-          }, avec un intérêt marqué pour ${safeObjective
-            .replace(/[.!]?$/, "")
-            .toLowerCase()}. Compétences en ${cv.technicalSkills.slice(0, 3).join(", ") || "développement professionnel"}.`
-        : `${cv.targetJob} disposant d’un parcours en ${cv.technicalSkills.slice(0, 3).join(", ") || "développement professionnel"}.`,
-      experiences,
-      projects: cv.projects.map(generateProject),
-      status: "generated",
-      promptVersion: "CV_PROMPT_003",
-    }
-    generated.atsValidation = validateATS(generated)
-    return this.save(generated)
+    if (remote) throw new Error(await responseError(remote))
+    throw new Error("Le backend IA est indisponible. La génération Gemini et le RAG s’exécutent uniquement sur le serveur.")
   },
   async regenerateSection(
     cv: CV,
@@ -385,33 +341,7 @@ export const cvService = {
         (await remote.json()) as CV & { _id?: string },
       )
     }
-    if (remote && remote.status !== 401) throw new Error(await responseError(remote))
-    await wait(650)
-    if (section === "summary") {
-      return this.generate({
-        ...cv,
-        experiences: cv.experiences.map((experience) => ({
-          ...experience,
-          bulletPoints: experience.bulletPoints,
-        })),
-      })
-    }
-    if (section === "experience") {
-      const experiences = cv.experiences.map((experience, itemIndex) =>
-        itemIndex === index
-          ? {
-              ...experience,
-              bulletPoints: toBullets(experience.rawDescription),
-            }
-          : experience,
-      )
-      const next = { ...cv, experiences }
-      return this.save({ ...next, atsValidation: validateATS(next) })
-    }
-    const projects = cv.projects.map((project, itemIndex) =>
-      itemIndex === index ? generateProject(project) : project,
-    )
-    const next = { ...cv, projects }
-    return this.save({ ...next, atsValidation: validateATS(next) })
+    if (remote) throw new Error(await responseError(remote))
+    throw new Error("Le backend IA est indisponible. La régénération s’exécute uniquement sur le serveur.")
   },
 }

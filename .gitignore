@@ -1,0 +1,16 @@
+**/node_modules/
+**/dist/
+**/coverage/
+**/.cache/
+**/.vite/
+**/*.tsbuildinfo
+**/*.log
+**/*-debug.log*
+**/.env
+**/.env.*
+!**/.env.example
+JOBORA_Backend/.mongodb/
+JOBORA_Frontend/.figma/design-context/
+JOBORA_Frontend/.plugins/
+JOBORA_Frontend/.opencode-skills/
+

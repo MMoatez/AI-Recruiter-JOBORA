@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+coverage/
+*.log
+.mongodb/
+rag_service/.venv/
+rag_service/data/
+rag_service/__pycache__/
+rag_service/.pytest_cache/
+*.py[cod]

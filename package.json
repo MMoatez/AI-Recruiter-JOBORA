@@ -1,0 +1,18 @@
+{
+  "name": "jobora-cv-platform",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "frontend:dev": "npm --prefix JOBORA_Frontend run dev",
+    "backend:dev": "npm --prefix JOBORA_Backend run start:dev",
+    "rag:setup": "npm --prefix JOBORA_Backend run rag:setup",
+    "rag:start": "npm --prefix JOBORA_Backend run rag:start",
+    "rag:index": "npm --prefix JOBORA_Backend run rag:index",
+    "frontend:test": "npm --prefix JOBORA_Frontend test",
+    "backend:test": "npm --prefix JOBORA_Backend test",
+    "test": "npm run frontend:test && npm run backend:test",
+    "frontend:build": "npm --prefix JOBORA_Frontend run build",
+    "backend:build": "npm --prefix JOBORA_Backend run build",
+    "build": "npm run frontend:build && npm run backend:build"
+  }
+}

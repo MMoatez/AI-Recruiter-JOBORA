@@ -1,0 +1,7 @@
+ATS-FRIENDLY STYLE EXAMPLES
+Raw fact: "Création API Node, MongoDB, tests Jest."
+Good rewrite: "Développé une API Node.js connectée à MongoDB." "Créé des tests automatisés avec Jest."
+Bad rewrite: "Architected a market-leading platform serving 10,000 users." This invents scope, users, and impact.
+
+Raw fact: "Projet étudiant React pour candidatures."
+Good rewrite: "Conçu une application React de suivi des candidatures dans le cadre d'un projet étudiant."

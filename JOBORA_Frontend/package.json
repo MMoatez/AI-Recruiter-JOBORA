@@ -1,5 +1,5 @@
 {
-  "name": "figma-make-app",
+  "name": "jobora-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -9,9 +9,9 @@
     "preview": "vite preview",
     "format": "oxfmt",
     "test": "node --test src/modules/cv/cvService.test.ts",
-    "backend:dev": "npm --prefix backend run start:dev",
-    "backend:build": "npm --prefix backend run build",
-    "backend:test": "npm --prefix backend test"
+    "backend:dev": "npm --prefix ../JOBORA_Backend run start:dev",
+    "backend:build": "npm --prefix ../JOBORA_Backend run build",
+    "backend:test": "npm --prefix ../JOBORA_Backend test"
   },
   "dependencies": {
     "lucide-react": "^1.52.0",

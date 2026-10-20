@@ -37,7 +37,7 @@ import {
   PageTitle,
   Textarea,
 } from "../../components/ui"
-import { cvService, emptyCV, validateATS } from "./cvService"
+import { cvService, emptyCV, exportCvToPdf, validateATS } from "./cvService"
 import type {
   CV,
   CertificationEntry,
@@ -406,7 +406,7 @@ export default function CVPage() {
   function print(record = cv) {
     setCV(record)
     setView("preview")
-    window.setTimeout(() => window.print(), 180)
+    window.setTimeout(() => exportCvToPdf(), 180)
   }
 
   if (loading)

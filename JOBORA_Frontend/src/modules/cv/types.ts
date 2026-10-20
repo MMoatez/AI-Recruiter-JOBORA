@@ -81,6 +81,14 @@ export type CV = {
   languages: LanguageEntry[]
   certifications: CertificationEntry[]
   atsValidation: AtsValidation | null
+  ragMetadata?: {
+    retrievedChunkIds: string[]
+    retrievedSources: string[]
+    topK: number
+    embeddingModel: string
+    ragQuery: string
+  } | null
+  generatedContent?: Record<string, unknown> | null
   promptVersion: string
   status: "draft" | "generated"
   createdAt: string

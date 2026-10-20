@@ -1,0 +1,5 @@
+EXPERIENCE WRITING RULES
+Write three to five concise bullet points per relevant experience when enough source facts exist. Begin with an action verb, describe the task or contribution, then include tools and a result only when explicitly supplied. Keep each bullet under 180 characters when practical. Do not manufacture metrics, responsibilities, clients, team sizes, or business impact.
+
+Example input: "Stage Flutter 3 mois, développement application mobile, Firebase, Git."
+Example style: "Développé des fonctionnalités mobiles avec Flutter." "Intégré les services Firebase." "Géré le code source avec Git."

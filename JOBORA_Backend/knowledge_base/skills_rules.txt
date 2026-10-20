@@ -1,0 +1,2 @@
+SKILLS FORMATTING RULES
+List only skills explicitly provided or unambiguously present in verified project and experience data. Use common technology names and remove case-insensitive duplicates. Separate technical skills, tools, soft skills, and languages. Do not infer a seniority level or proficiency level that the candidate did not state.
