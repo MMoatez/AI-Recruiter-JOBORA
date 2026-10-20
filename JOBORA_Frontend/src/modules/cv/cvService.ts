@@ -1,6 +1,7 @@
 import type { AtsValidation, CV } from "./types.ts"
 
 const STORAGE_KEY = "ai-recruiter.cvs"
+const DEMO_SEEDED_KEY = "ai-recruiter.cv-demo-seeded-v1"
 const API_BASE = (
   (import.meta as ImportMeta & { env?: { VITE_API_URL?: string } }).env
     ?.VITE_API_URL || "http://localhost:3000/api"
@@ -123,7 +124,7 @@ export function emptyCV(): CV {
 
 function demoCV(): CV {
   const cv = emptyCV()
-  return {
+  const demo: CV = {
     ...cv,
     id: "cv_demo_fullstack",
     title: "CV Développeur Full-Stack",
@@ -199,18 +200,32 @@ function demoCV(): CV {
     status: "generated",
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
   }
+  demo.atsValidation = validateATS(demo)
+  return demo
 }
 
 function readAll(): CV[] {
+  let records: CV[] = []
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as CV[]
-    if (parsed.length) return parsed
+    if (Array.isArray(parsed)) records = parsed
   } catch {
     // A corrupt local prototype cache is safely replaced by the demo record.
   }
-  const initial = [demoCV()]
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(initial))
-  return initial
+
+  const userId = currentUserId()
+  const seedKey = `${DEMO_SEEDED_KEY}.${userId}`
+  const demoAlreadyExists = records.some(
+    (record) => record.id === "cv_demo_fullstack" && record.userId === userId,
+  )
+
+  if (!demoAlreadyExists && localStorage.getItem(seedKey) !== "true") {
+    records.unshift(demoCV())
+    localStorage.setItem(seedKey, "true")
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+  }
+
+  return records
 }
 
 function writeAll(records: CV[]) {
