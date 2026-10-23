@@ -13,4 +13,7 @@ JOBORA_Backend/.mongodb/
 JOBORA_Frontend/.figma/design-context/
 JOBORA_Frontend/.plugins/
 JOBORA_Frontend/.opencode-skills/
-
+ai-service-Skillora/.venv/
+ai-service-Skillora/__pycache__/
+ai-service-Skillora/app/__pycache__/
+ai-service-Skillora/.env

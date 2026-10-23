@@ -10,7 +10,7 @@ async function bootstrap() {
   app.setGlobalPrefix("api")
   app.use(helmet())
   app.enableCors({
-    origin: config.get<string>("FRONTEND_URL", "http://localhost:8443"),
+    origin: config.get<string>("FRONTEND_URL", "http://localhost:8443").replace(/\/$/, ""),
     credentials: true,
   })
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))

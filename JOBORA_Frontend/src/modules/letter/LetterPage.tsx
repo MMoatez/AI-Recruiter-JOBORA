@@ -1,9 +1,11 @@
 import { useState } from "react"
 import { Check, Clock3, Copy, Download, Plus, RefreshCw } from "lucide-react"
 import { AINotice, Button, Card, PageTitle, Select } from "../../components/ui"
+import { readSession } from "../../services/api"
 
 export default function LetterPage() {
   const [generating, setGenerating] = useState(false)
+  const userName = readSession()?.user.name || "toi"
   return (
     <>
       <PageTitle
@@ -122,7 +124,7 @@ export default function LetterPage() {
             <p>
               Bien cordialement,
               <br />
-              <strong>Thomas Martin</strong>
+              <strong>{userName}</strong>
             </p>
           </article>
           <div className="paragraph-actions">

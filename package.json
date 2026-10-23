@@ -8,6 +8,7 @@
     "rag:setup": "npm --prefix JOBORA_Backend run rag:setup",
     "rag:start": "npm --prefix JOBORA_Backend run rag:start",
     "rag:index": "npm --prefix JOBORA_Backend run rag:index",
+    "ai:dev": "cd ai-service-Skillora && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
     "frontend:test": "npm --prefix JOBORA_Frontend test",
     "backend:test": "npm --prefix JOBORA_Backend test",
     "test": "npm run frontend:test && npm run backend:test",
