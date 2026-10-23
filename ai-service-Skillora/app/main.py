@@ -12,6 +12,8 @@ import pdfplumber
 
 
 app = FastAPI()
+from .letter import router as letter_router
+app.include_router(letter_router)
 GENERATION_MAX_COUNT = int(os.getenv("GENERATION_MAX_COUNT", "20"))
 
 
