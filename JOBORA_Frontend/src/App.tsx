@@ -6,6 +6,8 @@ import InterviewPage from "./modules/interview/InterviewPage"
 import LetterPage from "./modules/letter/LetterPage"
 import MatchingPage from "./modules/matching/MatchingPage"
 import PortfolioPage from "./modules/portfolio/PortfolioPage"
+import PortfolioPreviewPage from "./modules/portfolio/PortfolioPreviewPage"
+import PublicPortfolioPage from "./modules/portfolio/PublicPortfolioPage"
 import TrainingPage from "./modules/training/TrainingPage"
 import { AuthPage } from "./pages/Auth"
 import Dashboard from "./pages/Dashboard"
@@ -25,6 +27,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={authService.hasSession() ? <Navigate to="/app" replace /> : <AuthPage />} />
+        <Route path="/p/:slug" element={<PublicPortfolioPage />} />
+        <Route path="/portfolio/preview" element={<ProtectedRoute><PortfolioPreviewPage /></ProtectedRoute>} />
         <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="cv" element={<CVPage />} />
