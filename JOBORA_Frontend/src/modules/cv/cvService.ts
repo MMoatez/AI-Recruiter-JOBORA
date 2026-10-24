@@ -1,4 +1,5 @@
 import type { AtsValidation, CV } from "./types.ts"
+import { expireSession } from "../../services/api"
 
 const STORAGE_KEY = "ai-recruiter.cvs"
 const DEMO_SEEDED_KEY = "ai-recruiter.cv-demo-seeded-v1"
@@ -16,9 +17,9 @@ const wait = (duration = 450) =>
 function currentUserId() {
   try {
     const session = JSON.parse(localStorage.getItem("ai-recruiter.session") || "null")
-    return session?.user?.id || "usr_thomas"
+    return session?.user?.id || ""
   } catch {
-    return "usr_thomas"
+    return ""
   }
 }
 
@@ -34,7 +35,7 @@ async function backendRequest(path: string, init: RequestInit = {}) {
   const token = accessToken()
   if (!token || token.split(".").length !== 3) return null
   try {
-    return await fetch(`${API_BASE}${path}`, {
+    const response = await fetch(`${API_BASE}${path}`, {
       ...init,
       headers: {
         "Content-Type": "application/json",
@@ -42,6 +43,8 @@ async function backendRequest(path: string, init: RequestInit = {}) {
         ...init.headers,
       },
     })
+    if (response.status === 401) expireSession()
+    return response
   } catch {
     return null
   }

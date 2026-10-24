@@ -44,7 +44,7 @@ export function AuthPage() {
     try {
       if (mode === "register") await authService.register({ name, email, password })
       else await authService.login({ email, password })
-      navigate("/app/cv", { replace: true })
+      navigate("/app", { replace: true })
     } catch (value) {
       setError(value instanceof ApiError ? value.message : "Une erreur inattendue est survenue.")
     } finally {
@@ -64,12 +64,11 @@ export function AuthPage() {
           </div>
           {error && <div className="global-error"><AlertCircle size={18} /><span><strong>Impossible de continuer</strong>{error}</span></div>}
           <form onSubmit={submit} className="auth-form">
-            {mode === "register" && <Field label="Nom complet" value={name} onChange={(event) => setName(event.target.value)} placeholder="Thomas Martin" icon={<UserRound size={18} />} required />}
+            {mode === "register" && <Field label="Nom complet" value={name} onChange={(event) => setName(event.target.value)} placeholder="Prénom Nom" icon={<UserRound size={18} />} required />}
             <Field label="Adresse email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nom@email.com" icon={<Mail size={18} />} required />
             <Field label="Mot de passe" type={visible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="8 caractères minimum" minLength={8} icon={<LockKeyhole size={18} />} trailing={<button type="button" className="field-action" onClick={() => setVisible(!visible)} aria-label="Afficher le mot de passe">{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button>} required />
             <Button variant="ai" className="full" loading={loading}>{mode === "login" ? "Se connecter" : "Créer mon compte"}<ArrowRight size={17} /></Button>
           </form>
-          <button type="button" className="demo-link" onClick={() => { setMode("login"); setEmail("demo@ai-recruiter.local"); setPassword("LocalDemo123!") }}>Utiliser le compte de démonstration</button>
           <p className="auth-legal"><ShieldCheck size={14} /> Ta clé Gemini reste uniquement sur le serveur.</p>
         </div>
       </section>

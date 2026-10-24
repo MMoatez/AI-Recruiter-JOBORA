@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { AppLayout } from "./components/layout"
 import CVPage from "./modules/cv/CVPage"
@@ -12,17 +12,21 @@ import TrainingPage from "./modules/training/TrainingPage"
 import { AuthPage } from "./pages/Auth"
 import Dashboard from "./pages/Dashboard"
 import SettingsPage from "./pages/SettingsPage"
-import { authService } from "./services/api"
+import { authService, readSession } from "./services/api"
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   return authService.hasSession() ? children : <Navigate to="/" replace />
 }
 
 export default function App() {
+  const [, refresh] = useState(readSession())
+  useEffect(() => {
+    void authService.restoreSession().then(() => refresh(readSession()))
+  }, [])
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={authService.hasSession() ? <Navigate to="/app/cv" replace /> : <AuthPage />} />
+        <Route path="/" element={authService.hasSession() ? <Navigate to="/app" replace /> : <AuthPage />} />
         <Route path="/p/:slug" element={<PublicPortfolioPage />} />
         <Route path="/portfolio/preview" element={<ProtectedRoute><PortfolioPreviewPage /></ProtectedRoute>} />
         <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

@@ -30,6 +30,12 @@ export class AuthService {
     return this.createSession(user)
   }
 
+  async currentUser(id: string) {
+    const user = await this.users.findById(id).select("name email").lean()
+    if (!user) throw new UnauthorizedException("Session invalide ou expirée.")
+    return { id: user._id.toString(), name: user.name, email: user.email }
+  }
+
   private async createSession(user: UserDocument) {
     const payload = { sub: user.id, email: user.email }
     return {

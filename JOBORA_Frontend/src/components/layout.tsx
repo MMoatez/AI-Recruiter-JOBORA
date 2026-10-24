@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpen, BriefcaseBusiness, ChevronDown, FileCheck2, FilePenLine,
@@ -24,10 +24,22 @@ export function AppLayout() {
   const [drawer, setDrawer] = useState(false);
   const [dark, setDark] = useState(false);
   const location = useLocation();
+  const [journeyProgress, setJourneyProgress] = useState(() => {
+    const saved = Number(sessionStorage.getItem("jobora.interview.progress"));
+    return Number.isFinite(saved) ? saved : 0;
+  });
   const navigate = useNavigate();
   const session = readSession();
   const current = nav.find((item) => item.to === location.pathname)?.label || "Espace candidat";
   const initials = (session?.user.name || "Utilisateur").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+  useEffect(() => {
+    const updateProgress = (event: Event) => {
+      const value = (event as CustomEvent<number>).detail;
+      if (typeof value === "number") setJourneyProgress(value);
+    };
+    window.addEventListener("jobora:interview-progress", updateProgress);
+    return () => window.removeEventListener("jobora:interview-progress", updateProgress);
+  }, []);
   function toggleTheme() {
     setDark((value) => {
       document.documentElement.dataset.theme = value ? "light" : "dark";
@@ -81,7 +93,7 @@ export function AppLayout() {
         </header>
         <div className="context-bar">
           <span>Mon espace</span><span>/</span><strong>{current}</strong>
-          <div className="global-progress"><span>Parcours</span><Progress value={34} label="34 %" /></div>
+          <div className="global-progress"><span>Parcours</span><Progress value={location.pathname === "/app/entretien" ? journeyProgress : 0} label={`${location.pathname === "/app/entretien" ? journeyProgress : 0} %`} /></div>
         </div>
         <main className="main-content"><Outlet /></main>
       </div>
