@@ -12,16 +12,26 @@ export type AuthSession = {
 
 export class ApiError extends Error {
   constructor(
-    public status: 401 | 409 | 422 | 500,
+    public status: number,
     message: string,
     public fieldErrors?: Record<string, string>,
   ) {
     super(message)
+    this.name = "ApiError"
   }
 }
 
 const wait = (duration = 650) => new Promise((resolve) => window.setTimeout(resolve, duration))
 const API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL || "http://localhost:3000/api").replace(/\/$/, "")
+let redirectingToLogin = false
+
+function redirectToLogin() {
+  localStorage.removeItem("ai-recruiter.session")
+  if (!redirectingToLogin && window.location.pathname !== "/") {
+    redirectingToLogin = true
+    window.location.replace("/")
+  }
+}
 
 async function backendAuth(path: string, payload: AuthPayload): Promise<AuthSession | null> {
   try {
@@ -44,6 +54,7 @@ async function backendAuth(path: string, payload: AuthPayload): Promise<AuthSess
 
 function persist(session: AuthSession) {
   localStorage.setItem("ai-recruiter.session", JSON.stringify(session))
+  redirectingToLogin = false
   return session
 }
 
@@ -52,6 +63,55 @@ export function readSession(): AuthSession | null {
     return JSON.parse(localStorage.getItem("ai-recruiter.session") || "null") as AuthSession | null
   } catch {
     return null
+  }
+}
+
+export async function apiRequest<T>(
+  path: string,
+  init: RequestInit = {},
+  options: { authenticated?: boolean } = {},
+): Promise<T> {
+  const authenticated = options.authenticated ?? true
+  const session = readSession()
+  if (authenticated && !session?.accessToken) {
+    redirectToLogin()
+    throw new ApiError(401, "Connecte-toi pour accéder à cette ressource.")
+  }
+
+  const headers = new Headers(init.headers)
+  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json")
+  }
+  if (authenticated && session?.accessToken) {
+    headers.set("Authorization", `Bearer ${session.accessToken}`)
+  }
+
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE}${path}`, { ...init, headers })
+  } catch {
+    throw new ApiError(0, "Impossible de joindre le serveur. Vérifie ta connexion puis réessaie.")
+  }
+
+  if (!response.ok) {
+    let message = "Le serveur n’a pas pu traiter la demande."
+    try {
+      const body = await response.json() as { message?: string | string[] }
+      if (Array.isArray(body.message)) message = body.message.join(" ")
+      else if (body.message) message = body.message
+    } catch {
+      message = response.statusText || message
+    }
+    if (authenticated && response.status === 401) {
+      redirectToLogin()
+    }
+    throw new ApiError(response.status, message)
+  }
+
+  try {
+    return await response.json() as T
+  } catch {
+    throw new ApiError(response.status, "La réponse du serveur est invalide.")
   }
 }
 
