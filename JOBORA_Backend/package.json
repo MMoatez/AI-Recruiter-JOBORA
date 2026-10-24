@@ -14,7 +14,8 @@
     "rag:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File rag_service/setup.ps1",
     "rag:start": "powershell -NoProfile -ExecutionPolicy Bypass -File rag_service/start.ps1",
     "rag:index": "powershell -NoProfile -ExecutionPolicy Bypass -File rag_service/index.ps1",
-    "rag:reindex": "powershell -NoProfile -ExecutionPolicy Bypass -File rag_service/index.ps1 -Force"
+    "rag:reindex": "powershell -NoProfile -ExecutionPolicy Bypass -File rag_service/index.ps1 -Force",
+    "training:review": "node scripts/review-training-question.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.28.0",

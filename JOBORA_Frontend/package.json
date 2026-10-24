@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "format": "oxfmt",
-    "test": "node --test src/modules/cv/cvService.test.ts",
+    "test": "tsx --test src/modules/cv/cvService.test.ts src/modules/training/trainingService.test.ts",
     "backend:dev": "npm --prefix ../JOBORA_Backend run start:dev",
     "backend:build": "npm --prefix ../JOBORA_Backend run build",
     "backend:test": "npm --prefix ../JOBORA_Backend test"
@@ -31,6 +31,7 @@
     "@vitejs/plugin-react": "^6.0.0",
     "oxfmt": "^0.2.0",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.0",
     "vite": "^8.0.5"
   }
