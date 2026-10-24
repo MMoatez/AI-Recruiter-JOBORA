@@ -1,0 +1,140 @@
+{
+  "experiment": "full",
+  "synthetic_data": true,
+  "base_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "weights_updated": true,
+  "seed": 42,
+  "epochs": 1,
+  "batch_size": 8,
+  "learning_rate": 2e-05,
+  "duration_seconds": 18.073187400004826,
+  "epoch_training_loss": [
+    0.0650831451639533
+  ],
+  "split_sizes": {
+    "train": 28,
+    "validation": 8,
+    "test": 12
+  },
+  "training_examples_used": 28,
+  "leakage": {
+    "family_overlap": [],
+    "duplicate_pair_overlap": []
+  },
+  "baseline": {
+    "validation_thresholds": {
+      "partial": 0.6000000000000002,
+      "exact": 0.6500000000000002
+    },
+    "test": {
+      "precision_exact": 0.75,
+      "recall_exact": 1.0,
+      "f1_exact": 0.8571428571428571,
+      "macro_f1_three_class": 0.5714285714285714,
+      "confusion_matrix_rows_true_cols_predicted": [
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          6
+        ]
+      ],
+      "similarity_by_relation": {
+        "non_equivalent": {
+          "mean": 0.387264221906662,
+          "values": [
+            0.4780941307544708,
+            0.24319228529930115,
+            0.4405062198638916
+          ]
+        },
+        "partial": {
+          "mean": 0.567915678024292,
+          "values": [
+            -0.0011830739676952362,
+            0.8922433853149414,
+            0.8126868009567261
+          ]
+        },
+        "equivalent": {
+          "mean": 0.8861337304115295,
+          "values": [
+            0.9763727188110352,
+            0.8297246694564819,
+            0.888657808303833,
+            0.8038467168807983,
+            0.9908032417297363,
+            0.8273972868919373
+          ]
+        }
+      }
+    }
+  },
+  "fine_tuned": {
+    "validation_thresholds": {
+      "partial": 0.30000000000000004,
+      "exact": 0.8999999999999999
+    },
+    "test": {
+      "precision_exact": 1.0,
+      "recall_exact": 0.3333333333333333,
+      "f1_exact": 0.5,
+      "macro_f1_three_class": 0.4212121212121212,
+      "confusion_matrix_rows_true_cols_predicted": [
+        [
+          1,
+          2,
+          0
+        ],
+        [
+          1,
+          2,
+          0
+        ],
+        [
+          0,
+          4,
+          2
+        ]
+      ],
+      "similarity_by_relation": {
+        "non_equivalent": {
+          "mean": 0.36685630679130554,
+          "values": [
+            0.45371973514556885,
+            0.223322793841362,
+            0.4235263168811798
+          ]
+        },
+        "partial": {
+          "mean": 0.5710739493370056,
+          "values": [
+            -0.020917125046253204,
+            0.8994555473327637,
+            0.8346834778785706
+          ]
+        },
+        "equivalent": {
+          "mean": 0.8924972414970398,
+          "values": [
+            0.9757810831069946,
+            0.8504711389541626,
+            0.8933004140853882,
+            0.8076558709144592,
+            0.9905558824539185,
+            0.8372193574905396
+          ]
+        }
+      }
+    }
+  }
+}

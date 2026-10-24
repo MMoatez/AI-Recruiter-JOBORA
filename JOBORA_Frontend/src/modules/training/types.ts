@@ -1,0 +1,12 @@
+export type SkillGap = { skill: string; status: "matched"|"partial"|"weakly_evidenced"|"missing"; priority: number; similarity: number; reasoning: string; requirement_excerpt: string }
+export type RoadmapTask = { id: string; title: string; objective: string; estimated_hours: number; exercise: string; deliverables: string[]; evaluation_criteria: string[] }
+export type Roadmap = { title: string; summary: string; weeks: Array<{ week: number; title: string; skills: string[]; tasks: RoadmapTask[] }>; projects: Array<{ title: string; description: string; skills: string[]; deliverables: string[] }> }
+export type Resource = { id: string; title: string; provider: string; url: string; category: string; access: string; skills: string[] }
+export type Analysis = { plan_id: string; gaps: SkillGap[]; roadmap: Roadmap; resources: Resource[]; provenance: { provider: string; model: string }; created_at: string }
+export type ProgressItem = { task_id: string; status: string; completion_percent: number; minutes_spent: number; evidence_note: string|null; updated_at: string }
+export type Plan = { id: string; content: { gaps?: SkillGap[]; roadmap?: Roadmap; resources?: Resource[] }; progress: ProgressItem[]; model_name?: string; created_at: string }
+export type Question = { id: string; concept_id: string; prompt: string; choices: string[]; difficulty: string }
+export type Session = { id: string; skill: string; questions: Question[]; created_at: string }
+export type Result = { session_id: string; score: number; total: number; results: Array<{ question_id: string; concept_id: string; correct: boolean; explanation: string; mastery: number }> }
+export type Mastery = { concept_id: string; skill: string; mastery: number; correct: boolean; parameter_version: string; recorded_at: string }
+export type Recommendation = { concept_id: string; skill: string; mastery: number; action: string; rationale: string; disclaimer: string }

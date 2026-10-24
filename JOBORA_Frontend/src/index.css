@@ -1048,3 +1048,24 @@ select { min-height: 46px; resize: none; appearance: auto; }
   .ats-paper { width: 210mm; min-height: 297mm; padding: 15mm 16mm; box-shadow: none; }
   .ats-paper section, .ats-entry { break-inside: avoid; }
 }
+/* Training integration: uses JOBORA tokens and existing card primitives. */
+.training-tags { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0 16px; }
+.training-tags > span { display: flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 8px; background: var(--primary-soft); color: var(--primary); font-size: 10px; }
+.training-tags button { color: inherit; display: grid; place-items: center; }
+.training-alert { display: flex; align-items: center; gap: 9px; margin: 12px 0; padding: 12px; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border)); border-radius: 9px; color: var(--danger); background: color-mix(in srgb, var(--danger) 7%, var(--surface)); font-size: 11px; }
+.training-alert span { flex: 1; }
+.training-weeks details { border-top: 1px solid var(--border); }
+.training-weeks summary { display: grid; grid-template-columns: 90px 1fr 20px; align-items: center; gap: 10px; padding: 14px 0; cursor: pointer; list-style: none; font-size: 11px; }
+.training-weeks summary strong { font-size: 13px; }
+.training-weeks details > div { display: grid; gap: 8px; padding-bottom: 14px; }
+.training-weeks article { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; }
+.training-weeks article.done { opacity: .68; }
+.training-weeks article h3 { margin: 0 0 5px; font-size: 12px; }
+.training-weeks article p { color: var(--muted); font-size: 10px; }
+.task-check { width: 25px; height: 25px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; }
+.done .task-check { color: white; background: var(--teal); border-color: var(--teal); }
+.quiz-card { display: grid; gap: 12px; margin-top: 16px; }
+.quiz-card fieldset { padding: 13px; border: 1px solid var(--border); border-radius: 9px; }
+.quiz-card legend { padding: 0 6px; font-size: 11px; font-weight: 700; }
+.quiz-card label { display: flex; gap: 8px; margin-top: 7px; padding: 8px; border-radius: 7px; font-size: 10px; }
+.quiz-card label:has(input:checked) { color: var(--primary); background: var(--primary-soft); }

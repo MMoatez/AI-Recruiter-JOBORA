@@ -1,0 +1,81 @@
+split,family,text_a,text_b,label,relation,provenance
+train,python,Python programming,programmation en Python,1.0,equivalent,synthetic_v2
+train,python,Python developer,développeur Python,1.0,equivalent,synthetic_v2
+train,python,Python web APIs,FastAPI development,0.5,partial,synthetic_v2
+train,python,Python programming,Ruby programming,0.0,non_equivalent,synthetic_v2
+train,react,React.js,React,1.0,equivalent,synthetic_v2
+train,react,React frontend development,développement frontend React,1.0,equivalent,synthetic_v2
+train,react,React framework,Next.js framework,0.5,partial,synthetic_v2
+train,react,React frontend,Angular frontend,0.0,non_equivalent,synthetic_v2
+train,sql,SQL querying,requêtes SQL,1.0,equivalent,synthetic_v2
+train,sql,relational database queries,interrogation de bases relationnelles,1.0,equivalent,synthetic_v2
+train,sql,SQL querying,PostgreSQL administration,0.5,partial,synthetic_v2
+train,sql,SQL databases,MongoDB databases,0.0,non_equivalent,synthetic_v2
+train,aws,Amazon Web Services,AWS,1.0,equivalent,synthetic_v2
+train,aws,AWS cloud engineering,ingénierie cloud AWS,1.0,equivalent,synthetic_v2
+train,aws,AWS platform,AWS Lambda,0.5,partial,synthetic_v2
+train,aws,Amazon Web Services,Microsoft Azure,0.0,non_equivalent,synthetic_v2
+train,flutter,Flutter development,développement Flutter,1.0,equivalent,synthetic_v2
+train,flutter,Flutter mobile apps,applications mobiles Flutter,1.0,equivalent,synthetic_v2
+train,flutter,Flutter framework,Dart language,0.5,partial,synthetic_v2
+train,flutter,Flutter development,React Native development,0.0,non_equivalent,synthetic_v2
+train,testing,unit testing,tests unitaires,1.0,equivalent,synthetic_v2
+train,testing,automated software tests,tests logiciels automatisés,1.0,equivalent,synthetic_v2
+train,testing,unit tests,integration tests,0.5,partial,synthetic_v2
+train,testing,software testing,interface design,0.0,non_equivalent,synthetic_v2
+train,linux,Linux system administration,administration système Linux,1.0,equivalent,synthetic_v2
+train,linux,Linux command line,ligne de commande Linux,1.0,equivalent,synthetic_v2
+train,linux,Linux operations,Bash scripting,0.5,partial,synthetic_v2
+train,linux,Linux administration,Windows administration,0.0,non_equivalent,synthetic_v2
+train,rest_api,REST API design,conception d'API REST,1.0,equivalent,synthetic_v2
+train,rest_api,RESTful web services,services web RESTful,1.0,equivalent,synthetic_v2
+train,rest_api,REST APIs,OpenAPI specification,0.5,partial,synthetic_v2
+train,rest_api,REST API design,desktop publishing,0.0,non_equivalent,synthetic_v2
+train,accessibility,web accessibility,accessibilité web,1.0,equivalent,synthetic_v2
+train,accessibility,WCAG accessibility,accessibilité WCAG,1.0,equivalent,synthetic_v2
+train,accessibility,web accessibility,semantic HTML,0.5,partial,synthetic_v2
+train,accessibility,web accessibility,search engine optimization,0.0,non_equivalent,synthetic_v2
+train,data_analysis,data analysis,analyse de données,1.0,equivalent,synthetic_v2
+train,data_analysis,data analytics,analytique de données,1.0,equivalent,synthetic_v2
+train,data_analysis,data analysis,Pandas library,0.5,partial,synthetic_v2
+train,data_analysis,data analysis,database administration,0.0,non_equivalent,synthetic_v2
+validation,typescript,TypeScript programming,programmation TypeScript,1.0,equivalent,synthetic_v2
+validation,typescript,TypeScript developer,développeur TypeScript,1.0,equivalent,synthetic_v2
+validation,typescript,TypeScript language,JavaScript language,0.5,partial,synthetic_v2
+validation,typescript,TypeScript programming,Java programming,0.0,non_equivalent,synthetic_v2
+validation,firebase,Firebase platform,plateforme Firebase,1.0,equivalent,synthetic_v2
+validation,firebase,Cloud Firestore,base Cloud Firestore,1.0,equivalent,synthetic_v2
+validation,firebase,Firebase services,Firestore database,0.5,partial,synthetic_v2
+validation,firebase,Firebase platform,Supabase platform,0.0,non_equivalent,synthetic_v2
+validation,security,application security,sécurité applicative,1.0,equivalent,synthetic_v2
+validation,security,secure coding,développement sécurisé,1.0,equivalent,synthetic_v2
+validation,security,application security,penetration testing,0.5,partial,synthetic_v2
+validation,security,application security,network routing,0.0,non_equivalent,synthetic_v2
+validation,scrum,Scrum methodology,méthode Scrum,1.0,equivalent,synthetic_v2
+validation,scrum,Scrum master,facilitateur Scrum,1.0,equivalent,synthetic_v2
+validation,scrum,Scrum methodology,Kanban method,0.5,partial,synthetic_v2
+validation,scrum,Scrum methodology,waterfall model,0.0,non_equivalent,synthetic_v2
+validation,nodejs,Node.js development,développement Node.js,1.0,equivalent,synthetic_v2
+validation,nodejs,NodeJS runtime,environnement NodeJS,1.0,equivalent,synthetic_v2
+validation,nodejs,Node.js development,Express.js development,0.5,partial,synthetic_v2
+validation,nodejs,Node.js runtime,Java virtual machine,0.0,non_equivalent,synthetic_v2
+test,go_language,Go programming,programmation Go,1.0,equivalent,synthetic_v2_final_holdout
+test,go_language,Golang development,développement en langage Go,1.0,equivalent,synthetic_v2_final_holdout
+test,go_language,Go language,Gin web framework,0.5,partial,synthetic_v2_final_holdout
+test,go_language,Go programming,Google Analytics,0.0,non_equivalent,synthetic_v2_final_holdout
+test,rust_language,Rust programming,programmation Rust,1.0,equivalent,synthetic_v2_final_holdout
+test,rust_language,Rust developer,développeur Rust,1.0,equivalent,synthetic_v2_final_holdout
+test,rust_language,Rust language,Cargo package manager,0.5,partial,synthetic_v2_final_holdout
+test,rust_language,Rust programming,R language programming,0.0,non_equivalent,synthetic_v2_final_holdout
+test,terraform,Terraform infrastructure,infrastructure Terraform,1.0,equivalent,synthetic_v2_final_holdout
+test,terraform,infrastructure as code with Terraform,infrastructure as code avec Terraform,1.0,equivalent,synthetic_v2_final_holdout
+test,terraform,Terraform,AWS infrastructure,0.5,partial,synthetic_v2_final_holdout
+test,terraform,Terraform,CloudFormation,0.0,non_equivalent,synthetic_v2_final_holdout
+test,redis,Redis database,base de données Redis,1.0,equivalent,synthetic_v2_final_holdout
+test,redis,Redis caching,mise en cache Redis,1.0,equivalent,synthetic_v2_final_holdout
+test,redis,Redis,persistent key-value storage,0.5,partial,synthetic_v2_final_holdout
+test,redis,Redis database,Memcached cache,0.0,non_equivalent,synthetic_v2_final_holdout
+test,graphql,GraphQL API,API GraphQL,1.0,equivalent,synthetic_v2_final_holdout
+test,graphql,GraphQL development,développement GraphQL,1.0,equivalent,synthetic_v2_final_holdout
+test,graphql,GraphQL,Apollo Server,0.5,partial,synthetic_v2_final_holdout
+test,graphql,GraphQL,SQL query language,0.0,non_equivalent,synthetic_v2_final_holdout

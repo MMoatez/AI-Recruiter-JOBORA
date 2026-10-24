@@ -1,0 +1,2 @@
+# Known-compatible official CPU build for CPython 3.12 on Windows.
+torch==2.5.1+cpu

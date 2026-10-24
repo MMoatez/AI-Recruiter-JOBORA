@@ -1,0 +1,21 @@
+family,text_a,text_b,label,baseline_cosine,selected_cosine
+rust_language,Rust programming,R language programming,0.0,0.3629690408706665,0.3574216365814209
+rust_language,Rust language,Cargo package manager,0.5,0.09224659204483032,0.09123930335044861
+graphql,GraphQL development,développement GraphQL,1.0,0.9960637092590332,0.996286153793335
+terraform,Terraform infrastructure,infrastructure Terraform,1.0,0.9868285655975342,0.9868265986442566
+graphql,GraphQL,SQL query language,0.0,0.2888439893722534,0.286641001701355
+redis,Redis database,Memcached cache,0.0,0.22055639326572418,0.20508265495300293
+redis,Redis caching,mise en cache Redis,1.0,0.6178425550460815,0.6223466396331787
+go_language,Go programming,programmation Go,1.0,0.9418649077415466,0.9414302110671997
+go_language,Go programming,Google Analytics,0.0,0.13323882222175598,0.11816767603158951
+terraform,infrastructure as code with Terraform,infrastructure as code avec Terraform,1.0,0.9819349646568298,0.9821087121963501
+redis,Redis,persistent key-value storage,0.5,0.04713042080402374,0.04899788647890091
+rust_language,Rust programming,programmation Rust,1.0,0.9763115644454956,0.9764608144760132
+terraform,Terraform,AWS infrastructure,0.5,0.22888454794883728,0.22020980715751648
+redis,Redis database,base de données Redis,1.0,0.9187071323394775,0.9160221815109253
+graphql,GraphQL API,API GraphQL,1.0,0.9871010780334473,0.9865872859954834
+rust_language,Rust developer,développeur Rust,1.0,0.9722168445587158,0.9725818037986755
+terraform,Terraform,CloudFormation,0.0,0.49455034732818604,0.49472033977508545
+graphql,GraphQL,Apollo Server,0.5,0.12007799744606018,0.11541509628295898
+go_language,Go language,Gin web framework,0.5,0.21103718876838684,0.21052765846252441
+go_language,Golang development,développement en langage Go,1.0,0.6880582571029663,0.6877195835113525
