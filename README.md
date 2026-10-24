@@ -904,3 +904,18 @@ Les fichiers suivants ne sont pas des rapports supplémentaires ; ils sont néce
 - `JOBORA_Backend/knowledge_base/` : corpus utilisé par le RAG ;
 - `JOBORA_Backend/.env.example` : exemple de configuration sans secret ;
 - `JOBORA_Backend/README.md` : aide opérationnelle courte du sous-projet backend.
+
+## 27. Exporter un portfolio et le publier avec GitHub Pages
+
+Depuis l'éditeur Portfolio, ouvre le menu **Exporter**, puis choisis **Télécharger le ZIP**. L'archive contient un `index.html` autonome avec le template et le brouillon sélectionnés. Les styles sont intégrés dans le document ; aucune feuille de style, police, bibliothèque ou script externe n'est nécessaire. Le contenu des champs est rendu avec échappement HTML.
+
+### Publier l'export
+
+1. Décompresse l'archive téléchargée et vérifie localement `index.html` en l'ouvrant dans un navigateur.
+2. Crée un dépôt GitHub pour le site, ou utilise un dépôt existant.
+3. Place `index.html` à la racine du dépôt (ou dans un dossier `docs/`).
+4. Dans GitHub, ouvre **Settings → Pages**.
+5. Dans **Build and deployment**, sélectionne **Deploy from a branch**, puis choisis la branche contenant le fichier et `/ (root)` ou `/docs`.
+6. Enregistre. Après le déploiement, GitHub Pages affiche l'URL publique du site dans la page Pages.
+
+Après chaque nouvelle exportation, remplace `index.html` dans le dépôt et pousse le changement pour mettre à jour le site. Le rendu HTML/CSS est autonome ; un éventuel bouton de téléchargement du CV pointe toujours vers l'API JOBORA et nécessite que cette API soit accessible.
