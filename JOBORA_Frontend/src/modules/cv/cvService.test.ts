@@ -22,7 +22,7 @@ Object.defineProperty(globalThis, "localStorage", {
   configurable: true,
 })
 Object.defineProperty(globalThis, "window", {
-  value: { setTimeout },
+  value: { setTimeout, location: { pathname: "/app/cv", replace: () => undefined } },
   configurable: true,
 })
 
@@ -179,7 +179,6 @@ test("13. adds the complete example beside an existing draft only once", async (
     false,
   )
 })
-
 test("14. rejects an expired backend session instead of silently saving locally", async () => {
   localStorage.setItem("ai-recruiter.session", JSON.stringify({ accessToken: "a.b.c", user: { id: "user_test" } }))
   Object.defineProperty(globalThis, "fetch", {

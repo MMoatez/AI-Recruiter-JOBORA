@@ -1,4 +1,5 @@
 import type { AtsValidation, CV } from "./types.ts"
+import { expireSession } from "../../services/api"
 
 const STORAGE_KEY = "ai-recruiter.cvs"
 const DEMO_SEEDED_KEY = "ai-recruiter.cv-demo-seeded-v1"
@@ -16,9 +17,9 @@ const wait = (duration = 450) =>
 function currentUserId() {
   try {
     const session = JSON.parse(localStorage.getItem("ai-recruiter.session") || "null")
-    return session?.user?.id || "usr_thomas"
+    return session?.user?.id || ""
   } catch {
-    return "usr_thomas"
+    return ""
   }
 }
 
@@ -30,15 +31,15 @@ function accessToken() {
   }
 }
 
-function expireSession(): never {
-  localStorage.removeItem("ai-recruiter.session")
+function rejectExpiredSession(): never {
+  expireSession()
   throw new Error("Ta session a expiré. Reconnecte-toi pour continuer.")
 }
 
 async function backendRequest(path: string, init: RequestInit = {}) {
   const token = accessToken()
   if (token?.startsWith("mock-")) return null
-  if (!token || token.split(".").length !== 3) expireSession()
+  if (!token || token.split(".").length !== 3) rejectExpiredSession()
   let response: Response
   try {
     response = await fetch(`${API_BASE}${path}`, {
@@ -52,7 +53,7 @@ async function backendRequest(path: string, init: RequestInit = {}) {
   } catch {
     return null
   }
-  if (response.status === 401) expireSession()
+  if (response.status === 401) rejectExpiredSession()
   return response
 }
 

@@ -1,0 +1,49 @@
+split,family,text_a,text_b,label,relation,provenance
+train,python,Python,programmation Python,1.0,equivalent,synthetic
+train,python,développement Python,Python development,1.0,equivalent,synthetic
+train,python,Python,FastAPI,0.5,partial,synthetic
+train,python,Python,Ruby,0.0,non_equivalent,synthetic
+train,react,React,React.js,1.0,equivalent,synthetic
+train,react,développement React,React development,1.0,equivalent,synthetic
+train,react,React,Next.js,0.5,partial,synthetic
+train,react,React,Angular,0.0,non_equivalent,synthetic
+train,sql,SQL,langage de requête SQL,1.0,equivalent,synthetic
+train,sql,relational database queries,requêtes de base de données relationnelle,1.0,equivalent,synthetic
+train,sql,SQL,PostgreSQL administration,0.5,partial,synthetic
+train,sql,SQL,MongoDB,0.0,non_equivalent,synthetic
+train,aws,AWS,Amazon Web Services,1.0,equivalent,synthetic
+train,aws,cloud AWS,nuage Amazon Web Services,1.0,equivalent,synthetic
+train,aws,AWS,Lambda serverless,0.5,partial,synthetic
+train,aws,AWS,Microsoft Azure,0.0,non_equivalent,synthetic
+train,flutter,Flutter,développement Flutter,1.0,equivalent,synthetic
+train,flutter,Flutter mobile development,développement mobile Flutter,1.0,equivalent,synthetic
+train,flutter,Flutter,Dart,0.5,partial,synthetic
+train,flutter,Flutter,React Native,0.0,non_equivalent,synthetic
+train,testing,tests unitaires,unit testing,1.0,equivalent,synthetic
+train,testing,automated software testing,tests logiciels automatisés,1.0,equivalent,synthetic
+train,testing,unit testing,integration testing,0.5,partial,synthetic
+train,testing,software testing,graphic design,0.0,non_equivalent,synthetic
+train,linux,Linux administration,administration Linux,1.0,equivalent,synthetic
+train,linux,shell Linux,Linux shell,1.0,equivalent,synthetic
+train,linux,Linux,Bash scripting,0.5,partial,synthetic
+train,linux,Linux,Windows Server,0.0,non_equivalent,synthetic
+validation,typescript,TypeScript,programmation TypeScript,1.0,equivalent,synthetic
+validation,typescript,TypeScript development,développement TypeScript,1.0,equivalent,synthetic
+validation,typescript,TypeScript,JavaScript,0.5,partial,synthetic
+validation,typescript,TypeScript,Java,0.0,non_equivalent,synthetic
+validation,firebase,Firebase,plateforme Firebase,1.0,equivalent,synthetic
+validation,firebase,Cloud Firestore,Firestore,1.0,equivalent,synthetic
+validation,firebase,Firebase,Firestore database,0.5,partial,synthetic
+validation,firebase,Firebase,Supabase,0.0,non_equivalent,synthetic
+test,java_js,Java,programmation Java,1.0,equivalent,synthetic
+test,java_js,Java development,développement Java,1.0,equivalent,synthetic
+test,java_js,Java,Spring Boot,0.5,partial,synthetic
+test,java_js,Java,JavaScript,0.0,non_equivalent,synthetic
+test,source_control,Git,gestion de versions Git,1.0,equivalent,synthetic
+test,source_control,version control with Git,contrôle de version avec Git,1.0,equivalent,synthetic
+test,source_control,Git,GitHub,0.5,partial,synthetic
+test,source_control,Git,Subversion SVN,0.0,non_equivalent,synthetic
+test,containers,Docker,conteneurisation Docker,1.0,equivalent,synthetic
+test,containers,Docker containers,conteneurs Docker,1.0,equivalent,synthetic
+test,containers,Docker,Docker Compose,0.5,partial,synthetic
+test,containers,Docker,Kubernetes,0.0,non_equivalent,synthetic

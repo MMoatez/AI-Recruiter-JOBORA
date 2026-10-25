@@ -1,0 +1,13 @@
+family,text_a,text_b,label,baseline_cosine,fine_tuned_cosine
+source_control,version control with Git,contrôle de version avec Git,1.0,0.9763727188110352,0.9757810831069946
+source_control,Git,gestion de versions Git,1.0,0.8297246694564819,0.8504711389541626
+containers,Docker,Kubernetes,0.0,0.4780941307544708,0.45371973514556885
+java_js,Java,programmation Java,1.0,0.888657808303833,0.8933004140853882
+source_control,Git,Subversion SVN,0.0,0.24319228529930115,0.223322793841362
+containers,Docker containers,conteneurs Docker,1.0,0.8038467168807983,0.8076558709144592
+java_js,Java,JavaScript,0.0,0.4405062198638916,0.4235263168811798
+java_js,Java,Spring Boot,0.5,-0.0011830739676952362,-0.020917125046253204
+java_js,Java development,développement Java,1.0,0.9908032417297363,0.9905558824539185
+containers,Docker,Docker Compose,0.5,0.8922433853149414,0.8994555473327637
+containers,Docker,conteneurisation Docker,1.0,0.8273972868919373,0.8372193574905396
+source_control,Git,GitHub,0.5,0.8126868009567261,0.8346834778785706

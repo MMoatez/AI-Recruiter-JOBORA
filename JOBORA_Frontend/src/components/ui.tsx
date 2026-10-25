@@ -55,18 +55,23 @@ export function Textarea({
 export function Select({
   label,
   children,
+  options,
   value,
   onChange,
 }: {
   label: string;
-  children: ReactNode;
+  children?: ReactNode;
+  options?: Array<[value: string, label: string]>;
   value?: string;
   onChange?: React.ChangeEventHandler<HTMLSelectElement>;
 }) {
   return (
     <label className="field">
       <span className="field-label">{label}</span>
-      <select value={value} onChange={onChange}>{children}</select>
+      <select value={value} onChange={onChange}>
+        {options?.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}
+        {children}
+      </select>
     </label>
   );
 }
