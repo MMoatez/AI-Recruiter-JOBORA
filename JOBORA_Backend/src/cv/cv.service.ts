@@ -77,19 +77,21 @@ export class CvService {
     if (!source) throw new NotFoundException("Section du CV introuvable.")
     const regenerated = await this.gemini.regenerateSection(dto.section, source, targetJob)
     const content = regenerated.content
+    const patch: Record<string, unknown> = {}
     if (dto.section === "summary") {
-      current.professionalSummary = content
+      patch.professionalSummary = content
     } else if (dto.section === "experience") {
       experiences[index] = { ...experiences[index], bulletPoints: content }
-      current.experiences = experiences
+      patch.experiences = experiences
     } else {
       projects[index] = { ...projects[index], description: content }
-      current.projects = projects
+      patch.projects = projects
     }
-    current.atsValidation = this.ats.validate(current as unknown as Parameters<AtsValidationService["validate"]>[0])
-    current.ragMetadata = regenerated.ragMetadata
-    current.promptVersion = "CV_GENERATE_001_V7"
-    return this.cvs.findOneAndUpdate({ id, userId }, { $set: current }, { new: true, runValidators: true })
+    const candidate = { ...this.toSafeCandidate(current), ...patch }
+    patch.atsValidation = this.ats.validate(candidate as unknown as Parameters<AtsValidationService["validate"]>[0])
+    patch.ragMetadata = regenerated.ragMetadata
+    patch.promptVersion = "CV_GENERATE_001_V7"
+    return this.cvs.findOneAndUpdate({ id, userId }, { $set: patch }, { new: true, runValidators: true })
   }
 
   private toSafeCandidate(cv: Record<string, unknown>) {
@@ -101,9 +103,30 @@ export class CvService {
   private mergeGeneratedContent(candidate: Record<string, unknown>, generated: Record<string, unknown>) {
     const originals = <T extends Record<string, unknown>>(key: string) => Array.isArray(candidate[key]) ? candidate[key] as T[] : []
     const outputs = <T extends Record<string, unknown>>(key: string) => Array.isArray(generated[key]) ? generated[key] as T[] : []
-    const education = originals("education").map((item, index) => ({ ...item, description: String(outputs("education")[index]?.description ?? item.description ?? "") }))
-    const experiences = originals("experiences").map((item, index) => ({ ...item, bulletPoints: Array.isArray(outputs("experiences")[index]?.bulletPoints) ? outputs("experiences")[index].bulletPoints : item.bulletPoints ?? [] }))
-    const projects = originals("projects").map((item, index) => ({ ...item, description: String(outputs("projects")[index]?.description ?? item.description ?? "") }))
+    const findOutput = (item: Record<string, unknown>, values: Record<string, unknown>[], identityKeys: string[]) => {
+      const id = String(item.id ?? "").trim()
+      if (id) return values.find((value) => String(value.id ?? "").trim() === id)
+      const identity = (value: Record<string, unknown>) => identityKeys.map((key) => String(value[key] ?? "").trim().toLocaleLowerCase()).join("\u0000")
+      const sourceIdentity = identity(item)
+      if (!sourceIdentity.replace(/\u0000/g, "")) return undefined
+      const matches = values.filter((value) => identity(value) === sourceIdentity)
+      return matches.length === 1 ? matches[0] : undefined
+    }
+    const educationOutputs = outputs("education")
+    const experienceOutputs = outputs("experiences")
+    const projectOutputs = outputs("projects")
+    const education = originals("education").map((item) => {
+      const output = findOutput(item, educationOutputs, ["degree", "institution", "startDate", "endDate"])
+      return { ...item, description: String(output?.description ?? item.description ?? "") }
+    })
+    const experiences = originals("experiences").map((item) => {
+      const output = findOutput(item, experienceOutputs, ["jobTitle", "company", "startDate", "endDate"])
+      return { ...item, bulletPoints: Array.isArray(output?.bulletPoints) ? output.bulletPoints : item.bulletPoints ?? [] }
+    })
+    const projects = originals("projects").map((item) => {
+      const output = findOutput(item, projectOutputs, ["name"])
+      return { ...item, description: String(output?.description ?? item.description ?? "") }
+    })
     const allowedSkills = (Array.isArray(candidate.technicalSkills) ? candidate.technicalSkills : []).map(String)
     const proposedSkills = (Array.isArray(generated.technicalSkills) ? generated.technicalSkills : []).map(String)
     const technicalSkills = proposedSkills.filter((skill) => allowedSkills.some((allowed) => allowed.toLocaleLowerCase() === skill.toLocaleLowerCase()))

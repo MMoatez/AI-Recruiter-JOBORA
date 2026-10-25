@@ -8,10 +8,13 @@ import { RagService } from "./rag.service"
 const cvJsonSchema = {
   type: "object",
   properties: {
-    professionalSummary: { type: "string" }, education: { type: "array", items: { type: "object" } },
-    experiences: { type: "array", items: { type: "object" } }, projects: { type: "array", items: { type: "object" } },
+    professionalSummary: { type: "string" },
+    education: { type: "array", items: { type: "object", properties: { id: { type: "string" }, degree: { type: "string" }, institution: { type: "string" }, location: { type: "string" }, startDate: { type: "string" }, endDate: { type: "string" }, description: { type: "string" } }, required: ["degree", "institution", "location", "startDate", "endDate", "description"] } },
+    experiences: { type: "array", items: { type: "object", properties: { id: { type: "string" }, jobTitle: { type: "string" }, company: { type: "string" }, location: { type: "string" }, startDate: { type: "string" }, endDate: { type: "string" }, bulletPoints: { type: "array", items: { type: "string" } } }, required: ["jobTitle", "company", "location", "startDate", "endDate", "bulletPoints"] } },
+    projects: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, description: { type: "string" }, technologies: { type: "array", items: { type: "string" } }, link: { type: "string" } }, required: ["name", "description", "technologies", "link"] } },
     technicalSkills: { type: "array", items: { type: "string" } }, softSkills: { type: "array", items: { type: "string" } },
-    languages: { type: "array", items: { type: "object" } }, certifications: { type: "array", items: { type: "object" } },
+    languages: { type: "array", items: { type: "object", properties: { id: { type: "string" }, language: { type: "string" }, level: { type: "string" } }, required: ["language", "level"] } },
+    certifications: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, organization: { type: "string" }, date: { type: "string" } }, required: ["name", "organization", "date"] } },
   },
   required: ["professionalSummary", "education", "experiences", "projects", "technicalSkills", "softSkills", "languages", "certifications"],
 } as const
@@ -67,20 +70,42 @@ export class GeminiService {
 
   private async request(input: string, schema: Record<string, unknown>) {
     const ai = new GoogleGenAI({ apiKey: this.requireKey() })
-    const timeoutMs = Number(this.config.get("GEMINI_TIMEOUT_MS", 30000))
-    let timer: ReturnType<typeof setTimeout> | undefined
-    try {
-      const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new GatewayTimeoutException("Gemini n’a pas répondu dans le délai attendu.")), timeoutMs) })
-      const interaction = await Promise.race([ai.interactions.create({
-        model: this.config.get("GEMINI_MODEL", "gemini-3.8-flash"), input,
-        response_format: { type: "text", mime_type: "application/json", schema },
-      }), timeout])
-      if (!interaction.output_text) throw new Error("Empty Gemini response")
-      return interaction.output_text
-    } catch (error) {
-      if (error instanceof GatewayTimeoutException || error instanceof BadGatewayException || error instanceof ServiceUnavailableException) throw error
-      throw new BadGatewayException("Le service Gemini est temporairement indisponible.")
-    } finally { if (timer) clearTimeout(timer) }
+    const timeoutMs = Number(this.config.get("GEMINI_TIMEOUT_MS", 60000))
+    const maxAttempts = Math.max(1, Math.min(Number(this.config.get("GEMINI_MAX_ATTEMPTS", 2)), 3))
+    const retryDelayMs = Math.max(0, Number(this.config.get("GEMINI_RETRY_DELAY_MS", 1000)))
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      try {
+        const timeout = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new GatewayTimeoutException("Gemini n’a pas répondu dans le délai attendu.")), timeoutMs)
+        })
+        const response = await Promise.race([ai.models.generateContent({
+          model: this.config.get("GEMINI_MODEL", "gemini-3.5-flash-lite"),
+          contents: input,
+          config: { responseMimeType: "application/json", responseJsonSchema: schema },
+        }), timeout])
+        if (!response.text) throw new Error("Empty Gemini response")
+        return response.text
+      } catch (error) {
+        if (!this.isTransientError(error) || attempt === maxAttempts) {
+          if (error instanceof GatewayTimeoutException || error instanceof BadGatewayException || error instanceof ServiceUnavailableException) throw error
+          throw new BadGatewayException("Le service Gemini est temporairement indisponible.")
+        }
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, retryDelayMs * attempt))
+      } finally {
+        if (timer) clearTimeout(timer)
+      }
+    }
+
+    throw new BadGatewayException("Le service Gemini est temporairement indisponible.")
+  }
+
+  private isTransientError(error: unknown) {
+    if (error instanceof GatewayTimeoutException) return true
+    if (!error || typeof error !== "object") return false
+    const status = Number((error as { status?: unknown }).status)
+    return status === 429 || status === 500 || status === 502 || status === 503 || status === 504
   }
 
   private async loadPrompt(name: string) {
@@ -98,8 +123,20 @@ export class GeminiService {
 
   private parseCv(raw: string) {
     const value = this.parseJson(raw)
-    const arrays = ["education", "experiences", "projects", "technicalSkills", "softSkills", "languages", "certifications"]
-    if (typeof value.professionalSummary !== "string" || arrays.some((key) => !Array.isArray(value[key]))) throw new BadGatewayException("Gemini a retourné un CV qui ne respecte pas le schéma attendu.")
+    const isRecord = (item: unknown): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)
+    const hasStrings = (item: Record<string, unknown>, keys: string[]) => keys.every((key) => typeof item[key] === "string")
+    const optionalIdIsValid = (item: Record<string, unknown>) => item.id === undefined || typeof item.id === "string"
+    const isStringArray = (item: unknown): item is string[] => Array.isArray(item) && item.every((entry) => typeof entry === "string")
+    const isObjectArray = (item: unknown, validator: (entry: Record<string, unknown>) => boolean) => Array.isArray(item) && item.every((entry) => isRecord(entry) && validator(entry))
+    const valid = typeof value.professionalSummary === "string"
+      && isObjectArray(value.education, (item) => optionalIdIsValid(item) && hasStrings(item, ["degree", "institution", "location", "startDate", "endDate", "description"]))
+      && isObjectArray(value.experiences, (item) => optionalIdIsValid(item) && hasStrings(item, ["jobTitle", "company", "location", "startDate", "endDate"]) && isStringArray(item.bulletPoints))
+      && isObjectArray(value.projects, (item) => optionalIdIsValid(item) && hasStrings(item, ["name", "description", "link"]) && isStringArray(item.technologies))
+      && isStringArray(value.technicalSkills)
+      && isStringArray(value.softSkills)
+      && isObjectArray(value.languages, (item) => optionalIdIsValid(item) && hasStrings(item, ["language", "level"]))
+      && isObjectArray(value.certifications, (item) => optionalIdIsValid(item) && hasStrings(item, ["name", "organization", "date"]))
+    if (!valid) throw new BadGatewayException("Gemini a retourné un CV qui ne respecte pas le schéma attendu.")
     return value
   }
 

@@ -27,6 +27,29 @@ describe("CvService ownership", () => {
     expect(result.technicalSkills).toEqual(["Node.js"])
   })
 
+  it("matches generated entries by stable id when Gemini changes their order", () => {
+    const service = new CvService({} as never, {} as never, {} as never)
+    const merge = (service as unknown as { mergeGeneratedContent: (candidate: Record<string, unknown>, generated: Record<string, unknown>) => Record<string, unknown> }).mergeGeneratedContent.bind(service)
+    const result = merge(
+      {
+        education: [], projects: [], technicalSkills: [], softSkills: [], languages: [], certifications: [],
+        experiences: [
+          { id: "exp-1", company: "One", bulletPoints: [] },
+          { id: "exp-2", company: "Two", bulletPoints: [] },
+        ],
+      },
+      {
+        professionalSummary: "Profil", education: [], projects: [], technicalSkills: [],
+        experiences: [
+          { id: "exp-2", bulletPoints: ["Second"] },
+          { id: "exp-1", bulletPoints: ["First"] },
+        ],
+      },
+    ) as { experiences: Array<{ bulletPoints: string[] }> }
+
+    expect(result.experiences.map((experience) => experience.bulletPoints)).toEqual([["First"], ["Second"]])
+  })
+
   it("never sends raw personal information or database metadata to Gemini", () => {
     const service = new CvService({} as never, {} as never, {} as never)
     const sanitize = (service as unknown as { toSafeCandidate: (cv: Record<string, unknown>) => Record<string, unknown> }).toSafeCandidate.bind(service)
@@ -82,7 +105,7 @@ describe("CvService ownership", () => {
   })
 
   it("regenerates only the requested project description", async () => {
-    const current = { id: "cv_1", userId: "user_1", targetJob: "Developer", professionalSummary: "Profile", education: [], experiences: [], projects: [{ name: "One", description: "Before" }, { name: "Two", description: "Keep" }], technicalSkills: ["Node.js"] }
+    const current = { _id: "mongo-id", __v: 0, id: "cv_1", userId: "user_1", targetJob: "Developer", professionalSummary: "Profile", education: [], experiences: [], projects: [{ name: "One", description: "Before" }, { name: "Two", description: "Keep" }], technicalSkills: ["Node.js"] }
     const findOneAndUpdate = jest.fn().mockImplementation((_filter, update) => update.$set)
     const model = { findOne: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(current) }), findOneAndUpdate }
     const gemini = { regenerateSection: jest.fn().mockResolvedValue({ content: "After", ragMetadata: { retrievedChunkIds: ["p1"] } }) }
@@ -90,5 +113,8 @@ describe("CvService ownership", () => {
     const service = new CvService(model as never, gemini as never, ats as never)
     const result = await service.regenerateSection("user_1", "cv_1", { section: "project", index: 0 }) as unknown as { projects: Array<{ description: string }> }
     expect(result.projects.map((project) => project.description)).toEqual(["After", "Keep"])
+    expect(findOneAndUpdate.mock.calls[0][1].$set).not.toHaveProperty("_id")
+    expect(findOneAndUpdate.mock.calls[0][1].$set).not.toHaveProperty("__v")
+    expect(findOneAndUpdate.mock.calls[0][1].$set).not.toHaveProperty("userId")
   })
 })

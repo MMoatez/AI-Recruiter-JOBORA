@@ -345,12 +345,14 @@ export default function CVPage() {
       setCV(saved)
       await refresh()
       setNotice(message)
+      return true
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
           : "Impossible d’enregistrer ce CV.",
       )
+      return false
     } finally {
       setWorking(false)
     }
@@ -446,14 +448,13 @@ export default function CVPage() {
         <button
           className="cv2-back"
           onClick={async () => {
-            await saveCV()
-            setView("dashboard")
+            if (await saveCV()) setView("dashboard")
           }}
         >
           <ArrowLeft size={17} /> Mes CV
         </button>
         <div>
-          <span>Brouillon enregistré localement</span>
+          <span>Sauvegarde sécurisée</span>
           <Button
             variant="secondary"
             loading={working}
@@ -542,8 +543,9 @@ export default function CVPage() {
             {step < steps.length - 1 ? (
               <Button
                 onClick={async () => {
-                  await saveCV("Étape enregistrée")
-                  setStep((value) => Math.min(steps.length - 1, value + 1))
+                  if (await saveCV("Étape enregistrée")) {
+                    setStep((value) => Math.min(steps.length - 1, value + 1))
+                  }
                 }}
               >
                 Continuer <ArrowRight size={17} />

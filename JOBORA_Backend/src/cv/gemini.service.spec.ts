@@ -1,4 +1,4 @@
-import { BadGatewayException, ServiceUnavailableException } from "@nestjs/common"
+import { BadGatewayException, GatewayTimeoutException, ServiceUnavailableException } from "@nestjs/common"
 import { ConfigService } from "@nestjs/config"
 import { GeminiService } from "./gemini.service"
 
@@ -20,6 +20,10 @@ describe("GeminiService", () => {
     const parsed = (serviceWith({ GEMINI_API_KEY: "test" }) as unknown as { parseCv: (value: string) => { professionalSummary: string } }).parseCv(raw)
     expect(parsed.professionalSummary).toBe("Profil")
   })
+  it("rejects invalid nested CV fields", () => {
+    const raw = JSON.stringify({ professionalSummary: "Profil", education: [], experiences: [{ jobTitle: "Dev", company: "Jobora", location: "", startDate: "2025", endDate: "2026", bulletPoints: [42] }], projects: [], technicalSkills: [], softSkills: [], languages: [], certifications: [] })
+    expect(() => (serviceWith({ GEMINI_API_KEY: "test" }) as unknown as { parseCv: (value: string) => unknown }).parseCv(raw)).toThrow(BadGatewayException)
+  })
   it("includes the retrieved RAG context in the Gemini generation prompt", async () => {
     const localRag = {
       buildSearchQuery: jest.fn().mockReturnValue("CV ATS pour développeur"),
@@ -39,5 +43,13 @@ describe("GeminiService", () => {
   })
   it("rejects an invalid ATS validation payload", () => {
     expect(() => (serviceWith({ GEMINI_API_KEY: "test" }) as unknown as { parseValidation: (value: string) => unknown }).parseValidation('{"status":"PASS"}')).toThrow(BadGatewayException)
+  })
+  it("retries only temporary Gemini failures", () => {
+    const service = serviceWith({ GEMINI_API_KEY: "test" }) as unknown as { isTransientError: (error: unknown) => boolean }
+    expect(service.isTransientError(new GatewayTimeoutException())).toBe(true)
+    expect(service.isTransientError({ status: 429 })).toBe(true)
+    expect(service.isTransientError({ status: 503 })).toBe(true)
+    expect(service.isTransientError({ status: 400 })).toBe(false)
+    expect(service.isTransientError(new Error("invalid request"))).toBe(false)
   })
 })
