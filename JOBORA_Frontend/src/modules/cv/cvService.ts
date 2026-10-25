@@ -30,11 +30,18 @@ function accessToken() {
   }
 }
 
+function expireSession(): never {
+  localStorage.removeItem("ai-recruiter.session")
+  throw new Error("Ta session a expiré. Reconnecte-toi pour continuer.")
+}
+
 async function backendRequest(path: string, init: RequestInit = {}) {
   const token = accessToken()
-  if (!token || token.split(".").length !== 3) return null
+  if (token?.startsWith("mock-")) return null
+  if (!token || token.split(".").length !== 3) expireSession()
+  let response: Response
   try {
-    return await fetch(`${API_BASE}${path}`, {
+    response = await fetch(`${API_BASE}${path}`, {
       ...init,
       headers: {
         "Content-Type": "application/json",
@@ -45,6 +52,8 @@ async function backendRequest(path: string, init: RequestInit = {}) {
   } catch {
     return null
   }
+  if (response.status === 401) expireSession()
+  return response
 }
 
 function toApiPayload(cv: CV) {
@@ -296,7 +305,7 @@ export const cvService = {
         (await remote.json()) as CV & { _id?: string },
       )
     }
-    if (remote && remote.status !== 401) throw new Error(await responseError(remote))
+    if (remote) throw new Error(await responseError(remote))
     await wait(220)
     const records = readAll()
     const next = { ...cv, updatedAt: new Date().toISOString() }
@@ -313,7 +322,7 @@ export const cvService = {
       method: "DELETE",
     })
     if (remote?.ok) return
-    if (remote && remote.status !== 401 && remote.status !== 404)
+    if (remote && remote.status !== 404)
       throw new Error(await responseError(remote))
     await wait(180)
     const userId = currentUserId()

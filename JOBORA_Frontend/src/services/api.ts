@@ -21,7 +21,9 @@ export class ApiError extends Error {
 }
 
 const wait = (duration = 650) => new Promise((resolve) => window.setTimeout(resolve, duration))
-const API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL || "http://localhost:3000/api").replace(/\/$/, "")
+const frontendEnv = (import.meta as ImportMeta & { env?: { VITE_API_URL?: string; VITE_DEMO_MODE?: string } }).env
+const API_BASE = (frontendEnv?.VITE_API_URL || "http://localhost:3000/api").replace(/\/$/, "")
+const DEMO_MODE = frontendEnv?.VITE_DEMO_MODE === "true"
 
 async function backendAuth(path: string, payload: AuthPayload): Promise<AuthSession | null> {
   try {
@@ -59,6 +61,7 @@ export const authService = {
   async login(payload: AuthPayload): Promise<AuthSession> {
     const backendSession = await backendAuth("login", payload)
     if (backendSession) return persist(backendSession)
+    if (!DEMO_MODE) throw new ApiError(500, "Le serveur d’authentification est indisponible.")
     await wait()
     if (!payload.email || !payload.password) throw new ApiError(422, "Certains champs sont incomplets.")
     if (payload.email === "erreur@demo.fr") throw new ApiError(401, "Email ou mot de passe incorrect.")
@@ -71,6 +74,7 @@ export const authService = {
   async register(payload: AuthPayload): Promise<AuthSession> {
     const backendSession = await backendAuth("register", payload)
     if (backendSession) return persist(backendSession)
+    if (!DEMO_MODE) throw new ApiError(500, "Le serveur d’authentification est indisponible.")
     await wait()
     if (payload.email === "existe@demo.fr") throw new ApiError(409, "Un compte existe déjà avec cet email.")
     if (payload.password.length < 8) throw new ApiError(422, "Le mot de passe est trop court.", { password: "Utilise au moins 8 caractères." })
