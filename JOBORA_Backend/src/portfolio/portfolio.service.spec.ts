@@ -5,8 +5,7 @@ import { emptyPortfolioData, PortfolioData } from "./portfolio-data"
 import { PORTFOLIO_GENERATION_PROMPTS, PORTFOLIO_SYSTEM_PROMPTS } from "./portfolio.prompts"
 import { PortfolioService } from "./portfolio.service"
 import { portfolioCvDisposition } from "./portfolio-download"
-import { GridFSBucket, ObjectId } from "mongodb"
-import { Readable } from "node:stream"
+import { DatabaseService } from "../database/database.service"
 
 jest.mock("pdf-parse", () => jest.fn())
 
@@ -19,6 +18,7 @@ describe("PortfolioService", () => {
     findOne: jest.fn(),
     deleteOne: jest.fn(),
   }
+  let database: DatabaseService
   let service: PortfolioService
 
   beforeEach(() => {
@@ -31,8 +31,14 @@ describe("PortfolioService", () => {
       exec: jest.fn().mockResolvedValue(savedPortfolio),
     })
     portfolios.deleteOne.mockReset().mockReturnValue({ exec: jest.fn().mockResolvedValue({ deletedCount: 1 }) })
-    service = new PortfolioService(ollama as unknown as OllamaService, portfolios as never)
+    process.env.SQLITE_PATH = ":memory:"
+    database = new DatabaseService()
+    service = new PortfolioService(database, ollama as unknown as OllamaService)
   })
+
+  afterEach(() => database.onModuleDestroy())
+
+  afterEach(() => database?.onModuleDestroy())
 
   it("generates a headline from title and skills at temperature 0.3 and enforces its word count", async () => {
     const data = { ...emptyPortfolioData(), title: "Développeuse", skills: { ...emptyPortfolioData().skills, frameworks: ["NestJS"] } }
@@ -219,10 +225,6 @@ describe("PortfolioService", () => {
   })
 
   it("upserts the generated portfolio using only the authenticated user id", async () => {
-    jest.spyOn(
-      service as unknown as { storeSourceCv: (file: Express.Multer.File) => Promise<ObjectId> },
-      "storeSourceCv",
-    ).mockResolvedValue(new ObjectId())
     const cvText = "Ada Lovelace ada@example.com University of London Example Ltd TypeScript. Additional portfolio source text for testing the PDF extraction flow."
     parsePdf.mockResolvedValue({ text: cvText } as Awaited<ReturnType<typeof pdfParse>>)
     ollama.generateJson
@@ -330,48 +332,19 @@ describe("PortfolioService", () => {
     expect(ollama.generateJson).not.toHaveBeenCalled()
   })
 
-  it("does not serve a public CV unless the portfolio is published and download is enabled", async () => {
-    const query = {
-      select: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue(null),
-    }
-    portfolios.findOne.mockReturnValue(query)
-
-    await expect(service.getPublishedCv("private-slug")).rejects.toThrow("Téléchargement du CV indisponible.")
-
-    expect(portfolios.findOne).toHaveBeenCalledWith({
-      slug: "private-slug",
-      status: "published",
-      "data.showCvDownload": true,
-    })
-    expect(query.select).toHaveBeenCalledWith("+sourceCvFileId sourceCvName")
-  })
-
-  it("downloads the CV only through the published portfolio's stored GridFS reference", async () => {
-    const fileId = new ObjectId()
-    const query = {
-      select: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue({ sourceCvFileId: fileId, sourceCvName: "cv.pdf" }),
-    }
-    const bucket = {
-      find: jest.fn(() => ({ hasNext: jest.fn().mockResolvedValue(true) })),
-      openDownloadStream: jest.fn(() => Readable.from([Buffer.from("%PDF-source")])),
-    }
-    portfolios.findOne.mockReturnValue(query)
-    jest.spyOn(
-      service as unknown as { getSourceCvBucket: () => GridFSBucket },
-      "getSourceCvBucket",
-    ).mockReturnValue(bucket as unknown as GridFSBucket)
-
-    const result = await service.getPublishedCv("public-slug")
-
-    expect(portfolios.findOne).toHaveBeenCalledWith({
-      slug: "public-slug",
-      status: "published",
-      "data.showCvDownload": true,
-    })
-    expect(result).toEqual({ buffer: Buffer.from("%PDF-source"), filename: "cv.pdf" })
-    expect(bucket.openDownloadStream).toHaveBeenCalledWith(fileId)
+  it("stores and retrieves source CV PDFs as SQLite blobs", async () => {
+    const text = "Ada Lovelace ada@example.com University of London Example Ltd TypeScript. Additional portfolio source text for testing the PDF extraction flow."
+    parsePdf.mockResolvedValue({ text } as Awaited<ReturnType<typeof pdfParse>>)
+    ollama.generateJson
+      .mockResolvedValueOnce({ fullName: "Ada Lovelace", email: "ada@example.com" })
+      .mockResolvedValueOnce({ experiences: [] })
+      .mockResolvedValueOnce({ projects: [] })
+      .mockResolvedValueOnce({ skills: {} })
+      .mockResolvedValueOnce({ headline: "Développeuse spécialisée en TypeScript et technologies web modernes" })
+      .mockResolvedValueOnce({ about: "Je développe des applications fiables et accessibles." })
+    const bytes = Buffer.from("%PDF-source")
+    await service.generate("user-id", { buffer: bytes, originalname: "cv.pdf" } as Express.Multer.File)
+    await expect(service.getMineCv("user-id")).resolves.toEqual({ buffer: bytes, filename: "cv.pdf" })
   })
 
   it("creates a safe attachment disposition for CV filenames", () => {

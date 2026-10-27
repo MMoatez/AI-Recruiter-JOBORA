@@ -1,14 +1,12 @@
 import { BadGatewayException, BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common"
-import { randomBytes } from "node:crypto"
-import { Readable } from "node:stream"
-import { InjectModel } from "@nestjs/mongoose"
-import { Model } from "mongoose"
-import { GridFSBucket, ObjectId } from "mongodb"
+import { randomUUID } from "node:crypto"
+import { DatabaseService } from "../database/database.service"
+import type { SqliteCollection } from "../database/sqlite-collection"
 import { OllamaService } from "../ollama/ollama.service"
 import { PortfolioDataDto } from "./portfolio.dto"
-import { PortfolioData } from "./portfolio-data"
+import { emptyPortfolioData, PortfolioData } from "./portfolio-data"
 import { PORTFOLIO_GENERATION_PROMPTS } from "./portfolio.prompts"
-import { Portfolio, PortfolioDocument } from "./portfolio.schema"
+import type { PortfolioDocument } from "./portfolio.schema"
 import { PortfolioProject } from "./portfolio-data"
 import { extractCvText, extractFromCv } from "./portfolio-extraction"
 
@@ -17,9 +15,13 @@ export class PortfolioService {
   private readonly logger = new Logger(PortfolioService.name)
 
   constructor(
+    private readonly database: DatabaseService,
     private readonly ollama: OllamaService,
-    @InjectModel(Portfolio.name) private readonly portfolios: Model<PortfolioDocument>,
-  ) {}
+  ) {
+    this.portfolios = database.collection<PortfolioDocument>("portfolios")
+  }
+
+  private readonly portfolios: SqliteCollection<PortfolioDocument>
 
   async generate(userId: string, file: Express.Multer.File): Promise<PortfolioDocument> {
     const { text } = await this.extractCvText(file.buffer)
@@ -29,61 +31,60 @@ export class PortfolioService {
     data.about = await this.generateAbout(data)
 
     const serializedRemovedItems = removedItems.map(({ field, value }) => `${field}: ${value}`)
-    const previous = await this.portfolios.findOne({ userId }).select("+sourceCvFileId").exec()
-    const sourceCvFileId = await this.storeSourceCv(file)
-    let portfolio: PortfolioDocument | null
-    try {
-      portfolio = await this.portfolios.findOneAndUpdate(
-        { userId },
-        {
-          $set: {
-            data,
-            sourceCvName: file.originalname,
-            sourceCvText: text,
-            sourceCvFileId,
-            removedItems: serializedRemovedItems,
-            lastSyncedAt: new Date(),
-          },
-          $setOnInsert: { userId },
-        },
-        { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true },
-      ).exec()
-    } catch (error) {
-      try {
-        await this.deleteSourceCv(sourceCvFileId)
-      } catch (cleanupError) {
-        this.logger.error("Impossible de supprimer le PDF GridFS après l’échec de l’enregistrement du portfolio.", cleanupError)
-      }
-      throw error
+    const sourceCvId = this.storeSourceCv(userId, file)
+    const initial: PortfolioDocument = {
+      id: userId,
+      userId,
+      data: emptyPortfolioData(),
+      templateId: "developer",
+      slug: null,
+      publishedAt: null,
+      lastSyncedAt: null,
+      sourceCvName: "",
+      sourceCvText: "",
+      sourceCvFileId: null,
+      removedItems: [],
+      status: "draft",
+      createdAt: this.database.now(),
+      updatedAt: this.database.now(),
     }
+    const portfolio = await this.portfolios.findOneAndUpdate(
+      { userId },
+      {
+        $set: {
+          data,
+          sourceCvName: file.originalname,
+          sourceCvText: text,
+          sourceCvFileId: sourceCvId,
+          removedItems: serializedRemovedItems,
+          lastSyncedAt: new Date(),
+        },
+        $setOnInsert: { userId },
+      },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true, defaults: initial },
+    ).exec()
     if (!portfolio) throw new NotFoundException("Portfolio introuvable après l’enregistrement du CV.")
-    if (previous?.sourceCvFileId) await this.deleteSourceCv(previous.sourceCvFileId)
-    return portfolio
+    return portfolio as PortfolioDocument
   }
 
   async getMineCv(userId: string): Promise<{ buffer: Buffer; filename: string }> {
-    const portfolio = await this.portfolios.findOne({ userId })
-      .select("+sourceCvFileId sourceCvName")
-      .exec()
-    if (!portfolio?.sourceCvFileId) throw new NotFoundException("Aucun CV source n’est enregistré pour ce portfolio.")
+    const stored = this.database.connection.prepare("SELECT filename, content FROM portfolio_files WHERE user_id = ?").get(userId) as { filename: string; content: Buffer } | undefined
+    if (!stored) throw new NotFoundException("Aucun CV source n’est enregistré pour ce portfolio.")
     return {
-      buffer: await this.readSourceCv(portfolio.sourceCvFileId),
-      filename: portfolio.sourceCvName || "cv.pdf",
+      buffer: Buffer.from(stored.content),
+      filename: stored.filename || "cv.pdf",
     }
   }
 
   async getPublishedCv(slug: string): Promise<{ buffer: Buffer; filename: string }> {
-    const portfolio = await this.portfolios.findOne({
-      slug,
-      status: "published",
-      "data.showCvDownload": true,
-    })
-      .select("+sourceCvFileId sourceCvName")
-      .exec()
-    if (!portfolio?.sourceCvFileId) throw new NotFoundException("Téléchargement du CV indisponible.")
+    const portfolio = await this.portfolios.findOne({ slug, status: "published" }).lean().exec()
+    const stored = portfolio && (portfolio.data as PortfolioData)?.showCvDownload === true
+      ? this.database.connection.prepare("SELECT filename, content FROM portfolio_files WHERE user_id = ?").get(portfolio.userId) as { filename: string; content: Buffer } | undefined
+      : undefined
+    if (!portfolio || !stored) throw new NotFoundException("Téléchargement du CV indisponible.")
     return {
-      buffer: await this.readSourceCv(portfolio.sourceCvFileId),
-      filename: portfolio.sourceCvName || "cv.pdf",
+      buffer: Buffer.from(stored.content),
+      filename: stored.filename || "cv.pdf",
     }
   }
 
@@ -114,13 +115,13 @@ export class PortfolioService {
       { new: true, runValidators: true },
     ).exec()
     if (!updated) throw new NotFoundException("Portfolio introuvable.")
-    return updated
+    return updated as PortfolioDocument
   }
 
   async getMine(userId: string): Promise<PortfolioDocument> {
     const portfolio = await this.portfolios.findOne({ userId }).exec()
     if (!portfolio) throw new NotFoundException("Portfolio introuvable.")
-    return portfolio
+    return portfolio as PortfolioDocument
   }
 
   async publish(userId: string): Promise<PortfolioDocument> {
@@ -129,7 +130,7 @@ export class PortfolioService {
 
     const baseSlug = this.toSlug(current.data.fullName) || "portfolio"
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const slug = current.slug ?? (attempt === 0 ? baseSlug : `${baseSlug}-${randomBytes(3).toString("hex")}`)
+      const slug = current.slug ?? (attempt === 0 ? baseSlug : `${baseSlug}-${randomUUID().slice(0, 6)}`)
       try {
         const published = await this.portfolios.findOneAndUpdate(
           { userId },
@@ -137,9 +138,9 @@ export class PortfolioService {
           { new: true, runValidators: true },
         ).exec()
         if (!published) throw new NotFoundException("Portfolio introuvable.")
-        return published
+        return published as PortfolioDocument
       } catch (error) {
-        if (!this.isDuplicateKeyError(error)) throw error
+        if (!this.isUniqueConstraintError(error)) throw error
       }
     }
 
@@ -153,7 +154,7 @@ export class PortfolioService {
       { new: true, runValidators: true },
     ).exec()
     if (!portfolio) throw new NotFoundException("Portfolio introuvable.")
-    return portfolio
+    return portfolio as PortfolioDocument
   }
 
   async getPublished(slug: string) {
@@ -201,20 +202,24 @@ export class PortfolioService {
     }
   }
 
-  updateMine(userId: string, data: PortfolioDataDto): Promise<PortfolioDocument> {
-    return this.portfolios.findOneAndUpdate(
+  async updateMine(userId: string, data: PortfolioDataDto): Promise<PortfolioDocument> {
+    const saved = await this.portfolios.findOneAndUpdate(
       { userId },
       { $set: { data }, $setOnInsert: { userId } },
       { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true },
     ).exec()
+    if (!saved) throw new NotFoundException("Portfolio introuvable.")
+    return saved
   }
 
-  updateTemplate(userId: string, templateId: string): Promise<PortfolioDocument> {
-    return this.portfolios.findOneAndUpdate(
+  async updateTemplate(userId: string, templateId: string): Promise<PortfolioDocument> {
+    const saved = await this.portfolios.findOneAndUpdate(
       { userId },
       { $set: { templateId }, $setOnInsert: { userId } },
       { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true },
     ).exec()
+    if (!saved) throw new NotFoundException("Portfolio introuvable.")
+    return saved
   }
 
   async regenerateAbout(userId: string): Promise<PortfolioDocument> {
@@ -226,7 +231,7 @@ export class PortfolioService {
       { new: true, runValidators: true },
     ).exec()
     if (!updated) throw new NotFoundException("Portfolio introuvable.")
-    return updated
+    return updated as PortfolioDocument
   }
 
   async rankProjects(
@@ -266,17 +271,17 @@ export class PortfolioService {
     ).exec()
     if (!updated) throw new NotFoundException("Portfolio introuvable.")
     return {
-      portfolio: updated,
+      portfolio: updated as PortfolioDocument,
       scores: ranked.map(({ project, score }) => ({ projectName: project.name, score })),
     }
   }
 
   async deleteMine(userId: string): Promise<{ deleted: true }> {
-    const portfolio = await this.portfolios.findOne({ userId }).select("+sourceCvFileId").exec()
+    const portfolio = await this.portfolios.findOne({ userId }).exec()
     if (!portfolio) throw new NotFoundException("Portfolio introuvable.")
     const result = await this.portfolios.deleteOne({ userId }).exec()
     if (!result.deletedCount) throw new NotFoundException("Portfolio introuvable.")
-    if (portfolio.sourceCvFileId) await this.deleteSourceCv(portfolio.sourceCvFileId)
+    this.database.connection.prepare("DELETE FROM portfolio_files WHERE user_id = ?").run(userId)
     return { deleted: true }
   }
 
@@ -368,47 +373,16 @@ export class PortfolioService {
       .replace(/^-+|-+$/g, "")
   }
 
-  private getSourceCvBucket(): GridFSBucket {
-    const db = this.portfolios.db.db
-    if (!db) throw new Error("La connexion MongoDB n’est pas initialisée pour le stockage des CV.")
-    return new GridFSBucket(db, { bucketName: "portfolioCvs" })
+  private storeSourceCv(userId: string, file: Express.Multer.File): string {
+    const id = randomUUID()
+    this.database.connection.prepare(`INSERT INTO portfolio_files(id,user_id,filename,content) VALUES(?,?,?,?)
+      ON CONFLICT(user_id) DO UPDATE SET id=excluded.id,filename=excluded.filename,content=excluded.content`)
+      .run(id, userId, file.originalname, file.buffer)
+    return id
   }
 
-  private async storeSourceCv(file: Express.Multer.File): Promise<ObjectId> {
-    const upload = this.getSourceCvBucket().openUploadStream(file.originalname, {
-      metadata: { contentType: "application/pdf" },
-    })
-    await new Promise<void>((resolve, reject) => {
-      upload.once("error", reject)
-      upload.once("finish", resolve)
-      Readable.from([file.buffer]).pipe(upload)
-    })
-    return upload.id as ObjectId
-  }
-
-  private async readSourceCv(fileId: ObjectId): Promise<Buffer> {
-    const bucket = this.getSourceCvBucket()
-    const storedFile = await bucket.find({ _id: fileId }).hasNext()
-    if (!storedFile) throw new NotFoundException("Le fichier PDF source est introuvable.")
-
-    const chunks: Buffer[] = []
-    await new Promise<void>((resolve, reject) => {
-      const download = bucket.openDownloadStream(fileId)
-      download.on("data", (chunk: Buffer | Uint8Array) => chunks.push(Buffer.from(chunk)))
-      download.once("error", reject)
-      download.once("end", resolve)
-    })
-    return Buffer.concat(chunks)
-  }
-
-  private async deleteSourceCv(fileId: ObjectId): Promise<void> {
-    const bucket = this.getSourceCvBucket()
-    const storedFile = await bucket.find({ _id: fileId }).hasNext()
-    if (storedFile) await bucket.delete(fileId)
-  }
-
-  private isDuplicateKeyError(error: unknown): boolean {
-    return this.isRecord(error) && error.code === 11000
+  private isUniqueConstraintError(error: unknown): boolean {
+    return error instanceof Error && error.message.includes("UNIQUE constraint failed")
   }
 
   private cosineSimilarity(left: number[], right: number[]): number {

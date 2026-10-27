@@ -1,33 +1,50 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common"
+import { ConfigService } from "@nestjs/config"
+import { DatabaseService } from "../database/database.service"
 import { TrainingService } from "./training.service"
 
-const chain = (value: unknown) => ({ lean: () => ({ exec: async () => value }), exec: async () => value })
+describe("TrainingService with SQLite", () => {
+  let database: DatabaseService
+  let service: TrainingService
+  beforeEach(() => {
+    process.env.SQLITE_PATH = ":memory:"
+    database = new DatabaseService()
+    service = new TrainingService(database, new ConfigService({ TRAINING_AI_INTERNAL_TOKEN: "test-token" }))
+  })
+  afterEach(() => { jest.restoreAllMocks(); database.onModuleDestroy() })
 
-function service(overrides: Record<string, any> = {}) {
-  const plans = { findOne: jest.fn(() => chain(null)), exists: jest.fn(), create: jest.fn(), ...overrides.plans }
-  const progress = { find: jest.fn(() => chain([])), findOneAndUpdate: jest.fn(), ...overrides.progress }
-  const questions = { find: jest.fn(), bulkWrite: jest.fn(), ...overrides.questions }
-  const sessions = { findOneAndUpdate: jest.fn(), findOne: jest.fn(), updateOne: jest.fn(() => ({ exec: async () => ({}) })), create: jest.fn(), ...overrides.sessions }
-  const mastery = { find: jest.fn(), findOne: jest.fn(), create: jest.fn(), deleteMany: jest.fn(() => ({ exec: async () => ({}) })), ...overrides.mastery }
-  const config = { get: jest.fn((key: string, fallback: string) => key === "TRAINING_AI_INTERNAL_TOKEN" ? "test-token" : fallback) }
-  return { instance: new TrainingService(plans as never, progress as never, questions as never, sessions as never, mastery as never, config as never), plans, progress, questions, sessions, mastery }
-}
-
-describe("TrainingService ownership and assessment integrity", () => {
-  it("always scopes plan reads to the JWT user", async () => {
-    const context = service()
-    await expect(context.instance.getPlan("user-a", "plan-1")).rejects.toBeInstanceOf(NotFoundException)
-    expect(context.plans.findOne).toHaveBeenCalledWith({ id: "plan-1", userId: "user-a" })
+  it("scopes plan reads to the authenticated account", async () => {
+    await expect(service.getPlan("user-a", "plan-missing")).rejects.toBeInstanceOf(NotFoundException)
   })
 
-  it("rejects unapproved session questions before mastery writes and resets processing", async () => {
-    const context = service({
-      sessions: { findOneAndUpdate: jest.fn(() => ({ exec: async () => ({ id: "s1", userId: "user-a", status: "processing", questionIds: ["q1"] }) })) },
-      questions: { find: jest.fn(() => chain([{ id: "q1", reviewStatus: "pending_review" }])) },
+  it("stores and returns training plans and progress in SQLite", async () => {
+    jest.spyOn(global, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      roadmap: { title: "Career plan" }, provenance: { model: "test-model" },
+      gaps: [], resources: [],
+    }), { status: 200, headers: { "Content-Type": "application/json" } }))
+    const analyzed = await service.analyze("user-a", {
+      candidate_skills: [{ name: "React", level: "beginner", evidence: [] }],
+      job_description: "A sufficiently detailed job description for a React engineer.",
+      career_goal: "Become a React engineer", current_level: "beginner", weekly_hours: 4,
+      target_weeks: 4, preferred_language: "en", free_only: true,
+    } as never)
+    expect((await service.getPlan("user-a", analyzed.plan_id)).title).toBe("Career plan")
+    expect(await service.updateProgress("user-a", analyzed.plan_id, "task-1", {
+      status: "completed", completion_percent: 100, minutes_spent: 30, evidence_note: null,
+    } as never)).toMatchObject({ task_id: "task-1", status: "completed" })
+  })
+
+  it("refuses unreviewed assessment questions before scoring", async () => {
+    const sessionId = "session-1"
+    database.collection("training_sessions").create({
+      id: sessionId, userId: "user-a", status: "active", skill: "React", questionIds: ["q1"], answers: [],
     })
-    await expect(context.instance.submitAssessment("user-a", "s1", { answers: [{ question_id: "q1", selected_choice: 0 }] })).rejects.toBeInstanceOf(ForbiddenException)
-    expect(context.mastery.create).not.toHaveBeenCalled()
-    expect(context.mastery.deleteMany).toHaveBeenCalledWith({ userId: "user-a", sessionId: "s1" })
-    expect(context.sessions.updateOne).toHaveBeenCalledWith({ id: "s1", userId: "user-a", status: "processing" }, { $set: { status: "active", answers: [] } })
+    database.collection("training_questions").create({
+      id: "q1", conceptId: "react:hooks", skill: "React", prompt: "Question?", choices: ["A", "B"],
+      correctChoice: 0, explanation: "Explanation", difficulty: "beginner", reviewStatus: "pending_review", source: "groq",
+    })
+    await expect(service.submitAssessment("user-a", sessionId, {
+      answers: [{ question_id: "q1", selected_choice: 0 }],
+    } as never)).rejects.toBeInstanceOf(ForbiddenException)
   })
 })

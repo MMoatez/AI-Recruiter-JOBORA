@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from .internal_matching import router as internal_matching_router
 from .internal_training import router as internal_training_router
 
 
@@ -14,6 +15,7 @@ app = FastAPI(
     openapi_url=None,
 )
 app.include_router(internal_training_router)
+app.include_router(internal_matching_router)
 
 
 @app.get("/internal/health")

@@ -1,10 +1,10 @@
 import { BadGatewayException, BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from "@nestjs/common"
 import { ConfigService } from "@nestjs/config"
-import { InjectModel } from "@nestjs/mongoose"
 import { randomUUID } from "crypto"
-import { Model } from "mongoose"
+import { DatabaseService } from "../database/database.service"
+import type { SqliteCollection } from "../database/sqlite-collection"
 import { AnalyzeTrainingDto, CreateAssessmentDto, ProgressDto, SubmitAssessmentDto } from "./dto/training.dto"
-import { TrainingMastery, TrainingMasteryDocument, TrainingPlan, TrainingPlanDocument, TrainingProgress, TrainingProgressDocument, TrainingQuestion, TrainingQuestionDocument, TrainingSession, TrainingSessionDocument } from "./training.schemas"
+import type { TrainingMasteryDocument, TrainingPlanDocument, TrainingProgressDocument, TrainingQuestionDocument, TrainingSessionDocument } from "./training.schemas"
 
 @Injectable()
 export class TrainingService {
@@ -12,17 +12,24 @@ export class TrainingService {
   private readonly aiToken: string
   private readonly aiTimeoutMs: number
   constructor(
-    @InjectModel(TrainingPlan.name) private readonly plans: Model<TrainingPlanDocument>,
-    @InjectModel(TrainingProgress.name) private readonly progress: Model<TrainingProgressDocument>,
-    @InjectModel(TrainingQuestion.name) private readonly questions: Model<TrainingQuestionDocument>,
-    @InjectModel(TrainingSession.name) private readonly sessions: Model<TrainingSessionDocument>,
-    @InjectModel(TrainingMastery.name) private readonly mastery: Model<TrainingMasteryDocument>,
+    private readonly database: DatabaseService,
     config: ConfigService,
   ) {
+    this.plans = database.collection<TrainingPlanDocument>("training_plans")
+    this.progress = database.collection<TrainingProgressDocument>("training_progress")
+    this.questions = database.collection<TrainingQuestionDocument>("training_questions")
+    this.sessions = database.collection<TrainingSessionDocument>("training_sessions")
+    this.mastery = database.collection<TrainingMasteryDocument>("training_mastery")
     this.aiUrl = config.get<string>("TRAINING_AI_SERVICE_URL", "http://127.0.0.1:8002").replace(/\/$/, "")
     this.aiToken = config.get<string>("TRAINING_AI_INTERNAL_TOKEN", "")
     this.aiTimeoutMs = Number(config.get("TRAINING_AI_TIMEOUT_MS", 120000))
   }
+
+  private readonly plans: SqliteCollection<TrainingPlanDocument>
+  private readonly progress: SqliteCollection<TrainingProgressDocument>
+  private readonly questions: SqliteCollection<TrainingQuestionDocument>
+  private readonly sessions: SqliteCollection<TrainingSessionDocument>
+  private readonly mastery: SqliteCollection<TrainingMasteryDocument>
 
   private async ai<T>(path: string, body?: unknown): Promise<T> {
     try {

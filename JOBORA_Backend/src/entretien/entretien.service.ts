@@ -1,9 +1,9 @@
 import { BadGatewayException, GatewayTimeoutException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from "@nestjs/common"
 import { ConfigService } from "@nestjs/config"
-import { InjectModel } from "@nestjs/mongoose"
 import { randomUUID } from "crypto"
-import { Model } from "mongoose"
-import { PrepSession, PrepSessionDocument } from "./entretien.schema"
+import { DatabaseService } from "../database/database.service"
+import type { SqliteCollection } from "../database/sqlite-collection"
+import type { PrepAnswer, PrepQuestion, PrepSessionDocument } from "./entretien.schema"
 import { AnswerDto, CreateSessionDto, MockInterviewDto } from "./dto/entretien.dto"
 
 type AiQuestion = {
@@ -39,12 +39,15 @@ export class EntretienService {
   private readonly timeoutMs: number
 
   constructor(
-    @InjectModel(PrepSession.name) private readonly sessions: Model<PrepSessionDocument>,
+    private readonly database: DatabaseService,
     private readonly config: ConfigService,
   ) {
+    this.sessions = database.collection<PrepSessionDocument>("prep_sessions")
     this.baseUrl = this.config.get<string>("AI_SERVICE_URL", "http://127.0.0.1:8000").replace(/\/$/, "")
     this.timeoutMs = Number(this.config.get<string>("AI_SERVICE_TIMEOUT_MS", "480000"))
   }
+
+  private readonly sessions: SqliteCollection<PrepSessionDocument>
 
   private async callAi<T>(path: string, init: RequestInit): Promise<T> {
     const controller = new AbortController()
@@ -115,7 +118,7 @@ export class EntretienService {
       offer: dto.offer,
       cvText: dto.cvText,
       config: { type: dto.type, count: dto.count, level: dto.level },
-      status: "generating",
+      status: "generating", questions: [], answers: [], weakSkills: [], mockHistory: [], error: null,
     })
     void this.generate(session.id, userId, dto)
     return { id: session.id, status: session.status }
@@ -175,11 +178,11 @@ export class EntretienService {
     return session
   }
 
-  private safeQuestion(question: AiQuestion, answered: boolean) {
+  private safeQuestion(question: PrepQuestion, answered: boolean) {
     const plain = typeof (question as AiQuestion & { toObject?: () => AiQuestion }).toObject === "function"
       ? (question as AiQuestion & { toObject: () => AiQuestion }).toObject()
       : question
-    const normalized: AiQuestion = {
+    const normalized: PrepQuestion = {
       skill: plain.skill || "Général",
       type: "qcm",
       question: plain.question || "",
@@ -202,10 +205,10 @@ export class EntretienService {
 
   async detail(id: string, userId: string) {
     const session = await this.owned(id, userId)
-    const answers = new Set(session.answers.map((answer) => answer.questionIndex))
+    const answers = new Set(session.answers.map((answer: PrepAnswer) => answer.questionIndex))
     return {
       ...session.toObject(),
-      questions: session.questions.map((question, index) => this.safeQuestion(question, answers.has(index))),
+      questions: session.questions.map((question: PrepQuestion, index: number) => this.safeQuestion(question, answers.has(index))),
     }
   }
 
@@ -213,7 +216,7 @@ export class EntretienService {
     const session = await this.owned(id, userId)
     const question = session.questions[dto.questionIndex]
     if (!question) throw new NotFoundException("Question introuvable.")
-    if (session.answers.some((answer) => answer.questionIndex === dto.questionIndex)) {
+    if (session.answers.some((answer: PrepAnswer) => answer.questionIndex === dto.questionIndex)) {
       return this.detail(id, userId)
     }
     const isQcm = question.type === "qcm"
@@ -254,7 +257,7 @@ export class EntretienService {
           level: question.difficulty,
           failed_question: question.question,
           user_answer: dto.answer || question.options[dto.selectedIndex ?? -1] || "",
-          asked: session.questions.map((item) => item.question),
+          asked: session.questions.map((item: PrepQuestion) => item.question),
         }),
       })
       if (followup.question) session.questions.push(followup.question as never)

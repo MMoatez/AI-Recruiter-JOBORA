@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "format": "oxfmt",
-    "test": "tsx --test src/modules/cv/cvService.test.ts src/modules/training/trainingService.test.ts",
+    "test": "tsx --test src/modules/cv/cvService.test.ts src/modules/training/trainingService.test.ts src/modules/job-matcher/jobMatcherService.test.ts src/modules/job-matcher/ResultCard.test.tsx src/modules/job-matcher/panels.test.tsx",
     "backend:dev": "npm --prefix ../JOBORA_Backend run start:dev",
     "backend:build": "npm --prefix ../JOBORA_Backend run build",
     "backend:test": "npm --prefix ../JOBORA_Backend test"

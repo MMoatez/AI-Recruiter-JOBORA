@@ -1,255 +1,123 @@
-import { useState } from "react"
-import {
-  ArrowRight,
-  BookOpen,
-  BriefcaseBusiness,
-  Check,
-  ChevronDown,
-  Circle,
-  GraduationCap,
-  Lightbulb,
-  PenLine,
-  Plus,
-  RefreshCw,
-  Sparkles,
-  UploadCloud,
-} from "lucide-react"
+import { useEffect, useState, type FormEvent } from "react"
+import { ArrowRight, BriefcaseBusiness, FileCheck2, GraduationCap, LoaderCircle, RefreshCw, Sparkles, Upload } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import {
-  AINotice,
-  Badge,
-  Button,
-  Card,
-  PageTitle,
-  Progress,
-  Textarea,
-} from "../../components/ui"
+import { AINotice, Badge, Button, Card, PageTitle, Progress, Select, Textarea } from "../../components/ui"
+import { ApiError, protectedRequest } from "../../services/api"
+import type { CV } from "../cv/types"
+import { matchingService, type MatchingResult } from "./matchingService"
+
+function messageFor(error: unknown) {
+  return error instanceof ApiError ? error.message : "L’analyse n’a pas pu aboutir. Réessaie."
+}
 
 export default function MatchingPage() {
   const navigate = useNavigate()
-  const [result, setResult] = useState(true)
+  const [cvs, setCvs] = useState<CV[]>([])
+  const [cvId, setCvId] = useState("")
+  const [jobDescription, setJobDescription] = useState("")
+  const [result, setResult] = useState<MatchingResult | null>(null)
+  const [loadingCvs, setLoadingCvs] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+  const [uploading, setUploading] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    protectedRequest<CV[]>("/cvs").then((items) => {
+      if (!active) return
+      setCvs(items)
+      setCvId(items[0]?.id || "")
+    }).catch((cause: unknown) => {
+      if (active) setError(messageFor(cause))
+    }).finally(() => {
+      if (active) setLoadingCvs(false)
+    })
+    return () => { active = false }
+  }, [])
+
+  async function analyze(event: FormEvent) {
+    event.preventDefault()
+    setError("")
+    if (!cvId) return setError("Choisis un CV enregistré dans ton espace.")
+    if (jobDescription.trim().length < 20) return setError("L’offre doit contenir au moins 20 caractères.")
+    setBusy(true)
+    try {
+      setResult(await matchingService.analyze({ cvId, jobDescription: jobDescription.trim() }))
+    } catch (cause) {
+      setError(messageFor(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function importPdf(file?: File) {
+    if (!file) return
+    setError("")
+    if (file.type !== "application/pdf" || !file.name.toLowerCase().endsWith(".pdf")) return setError("Choisis un fichier PDF valide.")
+    if (file.size > 5 * 1024 * 1024) return setError("Le PDF ne doit pas dépasser 5 Mo.")
+    setUploading(true)
+    try {
+      const { cv } = await matchingService.upload(file)
+      setCvs((items) => [cv, ...items])
+      setCvId(cv.id)
+    } catch (cause) { setError(messageFor(cause)) }
+    finally { setUploading(false) }
+  }
+
+  const score = result?.compatibility_score ?? 0
+  const scoreLabel = score >= 75 ? "Similarité élevée" : score >= 50 ? "Similarité modérée" : "Similarité faible"
+
   return (
     <>
       <PageTitle
         eyebrow="Module 3 · Matching CV / offre"
-        title="Comprends vraiment ta compatibilité"
-        description="Une analyse transparente des exigences détectées — jamais une prédiction de recrutement."
-        action={
-          result ? (
-            <Button variant="secondary" onClick={() => setResult(false)}>
-              <RefreshCw size={17} /> Nouvelle analyse
-            </Button>
-          ) : undefined
-        }
+        title="Comprends ta compatibilité"
+        description="Compare ton CV à une offre grâce à une similarité sémantique SBERT, sans prédire une décision de recrutement."
+        action={result ? <Button variant="secondary" onClick={() => setResult(null)}><RefreshCw size={17} /> Nouvelle analyse</Button> : undefined}
       />
-      {!result ? (
-        <div className="match-input-grid">
-          <Card className="dropzone">
-            <UploadCloud size={30} />
-            <h2>Dépose ton CV</h2>
-            <p>PDF uniquement · 10 Mo maximum</p>
-            <Button variant="secondary">Choisir un fichier</Button>
-            <span>CV_Thomas_Martin_2025.pdf</span>
+      <AINotice />
+      <form className="match-input-grid" onSubmit={analyze}>
+        <Card>
+          <h2>Choisis ton CV JOBORA</h2>
+          <p className="muted">Le CV est chargé depuis ton compte. Tes coordonnées personnelles ne sont pas envoyées au modèle de matching.</p>
+          <label className="btn btn-secondary" style={{ display: "inline-flex", gap: 8, cursor: uploading ? "wait" : "pointer", marginBottom: 16 }}>
+            {uploading ? <LoaderCircle className="spin" size={17} /> : <Upload size={17} />} {uploading ? "Analyse du PDF…" : "Importer un CV PDF"}
+            <input hidden type="file" accept="application/pdf,.pdf" disabled={uploading || busy} onChange={(event) => { void importPdf(event.target.files?.[0]); event.currentTarget.value = "" }} />
+          </label>
+          <p className="muted">PDF texte uniquement, maximum 5 Mo. Le contenu extrait est analysé puis enregistré dans ton espace.</p>
+          {loadingCvs ? <p role="status"><LoaderCircle className="spin" size={18} /> Chargement des CV…</p> : cvs.length ? (
+            <Select label="CV à analyser" value={cvId} onChange={(event) => setCvId(event.target.value)}>
+              {cvs.map((cv) => <option key={cv.id} value={cv.id}>{cv.title || cv.targetJob || "CV sans titre"}</option>)}
+            </Select>
+          ) : <div className="empty-state"><FileCheck2 size={24} /><h3>Aucun CV enregistré</h3><p>Crée ou importe un CV avant de lancer une analyse.</p><Button type="button" onClick={() => navigate("/app/cv")}>Ouvrir mes CV</Button></div>}
+          <div className="match-disclaimer"><strong>À savoir</strong><p>Le score mesure la proximité globale des textes. Il ne vérifie pas séparément les compétences, les diplômes ou la durée d’expérience.</p></div>
+        </Card>
+        <Card>
+          <Textarea label="Offre d’emploi" value={jobDescription} onChange={(event) => setJobDescription(event.target.value)} rows={12} maxLength={30000} placeholder="Colle ici la description complète de l’offre…" hint={`${jobDescription.length} / 30 000 caractères`} />
+          <Button type="submit" variant="ai" className="full" loading={busy} disabled={loadingCvs || cvs.length === 0 || jobDescription.trim().length < 20}>Analyser la compatibilité <Sparkles size={17} /></Button>
+        </Card>
+      </form>
+      {error && <div className="card" role="alert" style={{ color: "var(--danger)", marginTop: 16 }}>{error}</div>}
+      {result && <>
+        <div className="matching-hero">
+          <Card className="score-card">
+            <div className="match-ring"><div><strong>{Math.round(score)}</strong><span>%</span></div></div>
+            <div><Badge tone={score >= 75 ? "success" : score >= 50 ? "warning" : "neutral"}>{scoreLabel}</Badge><h2>{result.compatibility_score.toFixed(2)} % de similarité sémantique</h2><p>Calculée entre le texte de ton CV et cette offre. Ce n’est ni un score ATS ni une probabilité d’embauche.</p></div>
           </Card>
-          <Card>
-            <Textarea
-              label="Colle l’offre d’emploi"
-              rows={12}
-              placeholder="Copie ici la description complète de l’offre…"
-            />
-            <Button
-              variant="ai"
-              className="full"
-              onClick={() => setResult(true)}
-            >
-              Analyser la compatibilité <Sparkles size={17} />
-            </Button>
+          <Card className="score-explainer">
+            <div className="card-heading"><div><h3>Méthode de calcul</h3><p>Encodage des textes, puis similarité cosinus.</p></div><Badge tone="ai"><Sparkles size={12} /> {result.algorithm}</Badge></div>
+            <Progress value={score} label={`${result.compatibility_score.toFixed(2)} %`} />
           </Card>
         </div>
-      ) : (
-        <>
-          <AINotice />
-          <div className="matching-hero">
-            <Card className="score-card">
-              <div className="match-ring">
-                <div>
-                  <strong>82</strong>
-                  <span>%</span>
-                </div>
-              </div>
-              <div>
-                <Badge tone="success">Très bonne compatibilité</Badge>
-                <h2>82 % de compatibilité avec les exigences détectées</h2>
-                <p>
-                  Ton profil couvre 12 des 15 critères identifiés dans l’offre
-                  Novalys.
-                </p>
-              </div>
-            </Card>
-            <Card className="score-explainer">
-              <div className="card-heading">
-                <div>
-                  <h3>Comment ce score est calculé</h3>
-                  <p>Chaque catégorie est pondérée selon l’offre.</p>
-                </div>
-                <Badge tone="ai">
-                  <Sparkles size={12} /> Explicable
-                </Badge>
-              </div>
-              <div className="weighted-bars">
-                {[
-                  ["Compétences obligatoires", "50 %", 86],
-                  ["Expérience", "20 %", 75],
-                  ["Formation", "10 %", 100],
-                  ["Langues", "10 %", 70],
-                  ["Compétences bonus", "10 %", 65],
-                ].map(([x, w, v]) => (
-                  <div key={String(x)}>
-                    <div>
-                      <span>{x}</span>
-                      <small>Poids {w}</small>
-                      <strong>{v}%</strong>
-                    </div>
-                    <Progress value={Number(v)} />
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-          <div className="score-disclaimer">
-            <Lightbulb size={19} />
-            <p>
-              <strong>
-                Ce score ne représente pas tes chances d’être accepté.
-              </strong>{" "}
-              Il mesure uniquement la compatibilité de ton CV avec les exigences
-              que nous avons détectées dans cette offre.
-            </p>
-          </div>
-          <Card className="criteria-card">
-            <div className="card-heading">
-              <div>
-                <h2>Détail des critères</h2>
-                <p>15 exigences détectées dans l’offre</p>
-              </div>
-              <div className="legend">
-                <Badge tone="success">12 correspondent</Badge>
-                <Badge tone="warning">2 partiels</Badge>
-                <Badge tone="danger">1 manquant</Badge>
-              </div>
-            </div>
-            <div className="criteria-table">
-              {[
-                [
-                  "React & TypeScript",
-                  "Compétence obligatoire",
-                  "Correspond",
-                  "Mentionnés dans 2 expériences récentes avec des réalisations mesurées.",
-                  "success",
-                ],
-                [
-                  "Node.js & API REST",
-                  "Compétence obligatoire",
-                  "Correspond",
-                  "12 mois d’utilisation chez Greenly, contexte directement pertinent.",
-                  "success",
-                ],
-                [
-                  "Docker",
-                  "Compétence obligatoire",
-                  "Partiel",
-                  "Docker apparaît dans tes compétences, mais aucune expérience ne l’illustre.",
-                  "warning",
-                ],
-                [
-                  "2 ans d’expérience",
-                  "Expérience",
-                  "Partiel",
-                  "18 mois d’expérience cumulée détectés. L’écart reste limité.",
-                  "warning",
-                ],
-                [
-                  "Anglais niveau B2",
-                  "Langues",
-                  "Manquant",
-                  "Ton niveau d’anglais n’est pas précisé dans le CV.",
-                  "danger",
-                ],
-              ].map(([name, type, status, why, tone]) => (
-                <details key={name}>
-                  <summary>
-                    <span className="criterion-icon">
-                      {tone === "success" ? (
-                        <Check size={16} />
-                      ) : tone === "warning" ? (
-                        <Circle size={12} />
-                      ) : (
-                        <Plus size={15} />
-                      )}
-                    </span>
-                    <span>
-                      <strong>{name}</strong>
-                      <small>{type}</small>
-                    </span>
-                    <Badge tone={tone as "success" | "warning" | "danger"}>
-                      {status}
-                    </Badge>
-                    <ChevronDown size={17} />
-                  </summary>
-                  <div className="criterion-detail">
-                    <Sparkles size={16} />
-                    <p>
-                      <strong>Pourquoi ce statut ?</strong>
-                      {why}
-                    </p>
-                    <Button variant="ghost">
-                      <PenLine size={15} /> Améliorer mon CV
-                    </Button>
-                  </div>
-                </details>
-              ))}
-            </div>
-          </Card>
-          <div className="next-actions">
-            <h2>Transforme cette analyse en actions</h2>
-            <div>
-              {[
-                [
-                  BriefcaseBusiness,
-                  "Générer ma lettre",
-                  "Une lettre ciblée sur les points forts",
-                  "/app/lettre",
-                ],
-                [
-                  GraduationCap,
-                  "Voir mes formations",
-                  "Une roadmap pour combler les écarts",
-                  "/app/formations",
-                ],
-                [
-                  BookOpen,
-                  "Réviser l’entretien",
-                  "Des questions adaptées à cette offre",
-                  "/app/entretien",
-                ],
-              ].map(([Icon, title, text, to]) => (
-                <Button
-                  key={String(title)}
-                  variant="secondary"
-                  onClick={() => navigate(String(to))}
-                >
-                  <Icon size={20} />
-                  <span>
-                    <strong>{String(title)}</strong>
-                    <small>{String(text)}</small>
-                  </span>
-                  <ArrowRight size={17} />
-                </Button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
+        <Card className="criteria-card">
+          <div className="card-heading"><div><h2>Suggestions de métiers</h2><p>Les cinq intitulés les plus proches du CV dans la taxonomie de l’analyseur.</p></div></div>
+          <div className="weighted-bars">{result.top_job_matches.map((match) => <div key={match.title}><div><span>{match.title}</span><strong>{match.score.toFixed(2)} %</strong></div><Progress value={match.score} /></div>)}</div>
+        </Card>
+        <div className="next-actions"><h2>Continuer ta préparation</h2><div>
+          <Button variant="secondary" onClick={() => navigate("/app/lettre")}><BriefcaseBusiness size={20} /><span><strong>Générer ma lettre</strong><small>Créer une candidature ciblée</small></span><ArrowRight size={17} /></Button>
+          <Button variant="secondary" onClick={() => navigate("/app/formations")}><GraduationCap size={20} /><span><strong>Voir mes formations</strong><small>Construire une roadmap de progression</small></span><ArrowRight size={17} /></Button>
+        </div></div>
+      </>}
     </>
   )
 }

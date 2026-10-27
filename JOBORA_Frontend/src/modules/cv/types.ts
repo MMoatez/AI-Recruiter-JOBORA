@@ -72,6 +72,7 @@ export type CV = {
   careerObjective: string
   personalInformation: PersonalInformation
   professionalSummary: string
+  rawText?: string
   education: EducationEntry[]
   experiences: ExperienceEntry[]
   projects: ProjectEntry[]

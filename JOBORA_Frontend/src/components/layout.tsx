@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpen, BriefcaseBusiness, ChevronDown, FileCheck2, FilePenLine,
   GraduationCap, LayoutDashboard, LogOut, Menu, Moon, PanelLeftClose,
-  Settings, Sparkles, Sun, Webhook, X,
+  Settings, Sparkles, Sun, Target, Webhook, X,
 } from "lucide-react";
 import { Progress } from "./ui";
 import { authService, readSession } from "../services/api";
@@ -13,6 +13,7 @@ const nav = [
   { to: "/app/cv", label: "Mon CV", icon: FilePenLine },
   { to: "/app/entretien", label: "Préparation entretien", icon: BookOpen },
   { to: "/app/matching", label: "Matching", icon: FileCheck2 },
+  { to: "/app/job-matcher", label: "Job Matcher", icon: Target },
   { to: "/app/lettre", label: "Lettre de motivation", icon: BriefcaseBusiness },
   { to: "/app/formations", label: "Formations", icon: GraduationCap },
   { to: "/app/portfolio", label: "Portfolio", icon: Webhook },

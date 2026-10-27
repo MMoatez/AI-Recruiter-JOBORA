@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { AppLayout } from "./components/layout"
 import CVPage from "./modules/cv/CVPage"
 import InterviewPage from "./modules/interview/InterviewPage"
+import JobMatcherPage from "./modules/job-matcher/JobMatcherPage"
 import LetterPage from "./modules/letter/LetterPage"
 import MatchingPage from "./modules/matching/MatchingPage"
 import PortfolioPage from "./modules/portfolio/PortfolioPage"
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="cv" element={<CVPage />} />
           <Route path="entretien" element={<InterviewPage />} />
           <Route path="matching" element={<MatchingPage />} />
+          <Route path="job-matcher" element={<JobMatcherPage />} />
           <Route path="lettre" element={<LetterPage />} />
           <Route path="formations" element={<TrainingPage />} />
           <Route path="portfolio" element={<PortfolioPage />} />

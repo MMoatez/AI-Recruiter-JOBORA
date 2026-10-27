@@ -8,10 +8,10 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common"
 import { ConfigService } from "@nestjs/config"
-import { InjectModel } from "@nestjs/mongoose"
 import { randomUUID } from "crypto"
-import { Model } from "mongoose"
-import { Cv, CvDocument } from "../cv/cv.schema"
+import { DatabaseService } from "../database/database.service"
+import type { SqliteCollection } from "../database/sqlite-collection"
+import type { Cv } from "../cv/cv.schema"
 import { GenerateLetterDto, RewriteParagraphDto, UpdateLetterDto } from "./dto/lettre.dto"
 import { CoverLetter, CoverLetterDocument, LetterParagraph } from "./lettre.schema"
 import { sanitizeCv, scrubText } from "./lettre.privacy"
@@ -53,13 +53,17 @@ export class LettreService {
   private readonly timeoutMs: number
 
   constructor(
-    @InjectModel(CoverLetter.name) private readonly letters: Model<CoverLetterDocument>,
-    @InjectModel(Cv.name) private readonly cvs: Model<CvDocument>,
+    private readonly database: DatabaseService,
     private readonly config: ConfigService,
   ) {
+    this.letters = database.collection<CoverLetter>("cover_letters")
+    this.cvs = database.collection<Cv>("cvs")
     this.baseUrl = this.config.get<string>("AI_SERVICE_URL", "http://127.0.0.1:8000").replace(/\/$/, "")
     this.timeoutMs = Number(this.config.get<string>("AI_SERVICE_TIMEOUT_MS", "480000"))
   }
+
+  private readonly letters: SqliteCollection<CoverLetter>
+  private readonly cvs: SqliteCollection<Cv>
 
   /** Appel HTTP vers le service FastAPI local, avec délai maximal et erreurs normalisées. */
   private async callAi<T>(path: string, body: unknown): Promise<T> {
@@ -101,10 +105,8 @@ export class LettreService {
   }
 
   private toResponse(letter: CoverLetterDocument | (CoverLetter & { _id?: unknown; __v?: unknown })) {
-    const plain = typeof (letter as CoverLetterDocument).toObject === "function"
-      ? (letter as CoverLetterDocument).toObject()
-      : letter
-    // _id et __v sont retirés (même correction que le module CV : « property _id should not exist »).
+    const document = letter as CoverLetter & { _id?: unknown; __v?: unknown; toObject?: () => CoverLetter }
+    const plain = typeof document.toObject === "function" ? document.toObject() : document
     const { _id, __v, ...rest } = plain as CoverLetter & { _id?: unknown; __v?: unknown }
     return rest
   }
@@ -183,6 +185,7 @@ export class LettreService {
       aiModel: result.model || "",
       promptVersion: result.prompt_version || "LETTER_GENERATE_001_V1",
       status: "generated",
+      versions: [],
     })
     return this.toResponse(letter)
   }
@@ -226,7 +229,7 @@ export class LettreService {
       language: letter.language,
       tone: letter.tone,
       company: letter.company,
-      other_paragraphs: letter.paragraphs.filter((_, i) => i !== index).map((p) => p.text),
+      other_paragraphs: letter.paragraphs.filter((_paragraph, i) => i !== index).map((paragraph) => paragraph.text),
     })
     if (!result.paragraph?.text) throw new BadGatewayException("Le service IA a renvoyé une réponse invalide.")
     this.snapshot(letter, "Avant réécriture IA")

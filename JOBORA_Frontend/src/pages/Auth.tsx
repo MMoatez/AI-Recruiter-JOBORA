@@ -21,7 +21,7 @@ function AuthVisual() {
             <div><span><ShieldCheck size={22} /></span><p><strong>Données privées</strong><small>Chaque compte accède uniquement à ses propres CV.</small></p></div>
           </div>
         </div>
-        <div className="visual-trust"><CheckCircle2 size={18} /><span><strong>Backend sécurisé</strong><small>NestJS, MongoDB et JWT</small></span></div>
+        <div className="visual-trust"><CheckCircle2 size={18} /><span><strong>Backend sécurisé</strong><small>NestJS, SQLite et JWT</small></span></div>
       </div>
     </section>
   )

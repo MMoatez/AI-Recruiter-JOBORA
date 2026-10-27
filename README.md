@@ -7,7 +7,7 @@ JOBORA est une plateforme de recrutement. Le module présenté dans ce dépôt p
 Le projet est composé de deux applications :
 
 - `JOBORA_Frontend` : interface React et parcours utilisateur ;
-- `JOBORA_Backend` : API NestJS, authentification, MongoDB, RAG, Gemini et validation ATS.
+- `JOBORA_Backend` : API NestJS, authentification, stockage SQLite local, RAG, Gemini et validation ATS.
 
 L'objectif principal n'est pas de laisser l'IA inventer un CV. Gemini reformule uniquement les faits fournis par le candidat. Le candidat reste responsable du résultat final.
 
@@ -16,7 +16,7 @@ L'objectif principal n'est pas de laisser l'IA inventer un CV. Gemini reformule 
 - inscription et connexion avec JWT ;
 - création de plusieurs CV par utilisateur ;
 - formulaire guidé en neuf étapes ;
-- sauvegarde des brouillons dans MongoDB ;
+- sauvegarde des comptes, CV et autres données dans SQLite local ;
 - génération Gemini exécutée uniquement sur le backend ;
 - récupération de règles ATS avec un système RAG ;
 - stockage vectoriel des règles dans ChromaDB ;
@@ -24,6 +24,7 @@ L'objectif principal n'est pas de laisser l'IA inventer un CV. Gemini reformule 
 - réponse Gemini au format JSON structuré ;
 - conservation des faits originaux et filtrage des compétences générées ;
 - validation ATS déterministe et contrôle linguistique Gemini ;
+- matching sémantique CV/offre avec SBERT et suggestions de métiers ;
 - régénération du résumé, d'une expérience ou d'un projet ;
 - prévisualisation sur une colonne et export PDF par impression navigateur ;
 - protection contre la prompt injection ;
@@ -36,7 +37,7 @@ L'objectif principal n'est pas de laisser l'IA inventer un CV. Gemini reformule 
 | Application web front-end + back-end | React 19 + NestJS 11. |
 | Module IA appliqué au génie logiciel | Génération et reformulation de CV avec un LLM. |
 | Appel API vers un LLM | Google Gemini appelé uniquement par le backend. |
-| Base de données utilisateurs | MongoDB et Mongoose. |
+| Base de données utilisateurs | SQLite embarqué dans le backend (`JOBORA_Backend/data/jobora.sqlite`). |
 | Ne pas envoyer les données personnelles brutes au LLM | Le backend retire entièrement `personalInformation` avant tout appel Gemini. |
 | Valider la sortie avant affichage | Schéma JSON, parsing défensif, conservation des faits et validation ATS. |
 | Gérer timeout, quota ou clé absente | Timeout et erreurs fournisseur normalisés ; clé vérifiée avant l'appel. |
@@ -52,8 +53,14 @@ flowchart TD
     F -->|HTTP + JWT| API[API NestJS]
     API --> AUTH[Authentification]
     API --> CVS[CV Service]
-    AUTH --> MONGO[(MongoDB)]
-    CVS --> MONGO
+    AUTH --> SQLITE[(SQLite local)]
+    CVS --> SQLITE
+    F -->|POST /api/matching/analyze + JWT| MATCH[Matching Module NestJS]
+    MATCH -->|Texte CV sans coordonnées + offre| TRAINING[Service IA interne FastAPI]
+    TRAINING --> SBERT[Modèle Sentence Transformers SBERT]
+    SBERT --> TRAINING
+    TRAINING -->|Similarité et métiers suggérés| MATCH
+    MATCH --> F
     CVS -->|HTTP local| RAG[Service RAG Python FastAPI]
     RAG --> EMB[MiniLM local embeddings]
     EMB --> CHROMA[(ChromaDB PersistentClient local)]
@@ -66,7 +73,7 @@ flowchart TD
     GEM --> CVS
     CVS --> ATS[ATS Validation Service]
     ATS --> CVS
-    CVS --> MONGO
+    CVS --> SQLITE
     CVS --> F
     F --> PDF[Prévisualisation et export PDF]
 ```
@@ -77,13 +84,19 @@ flowchart TD
 | --- | --- |
 | React | Afficher l'interface, collecter les informations et présenter le CV. |
 | NestJS | Sécuriser les requêtes et coordonner toute la logique métier. |
-| MongoDB | Enregistrer les utilisateurs, brouillons, CV générés et résultats ATS. |
+| SQLite | Enregistrer les utilisateurs, CV, lettres, portfolios, entretiens et formations dans un fichier local. |
 | JWT | Identifier l'utilisateur connecté et protéger ses CV. |
 | Service RAG Python | Charger, découper, indexer et rechercher les règles ATS avant l'appel Gemini. |
 | MiniLM | Transformer les textes et requêtes en vecteurs numériques. |
 | ChromaDB PersistentClient | Stocker et rechercher les vecteurs sur le disque local Windows, sans Docker ni WSL. |
 | Gemini | Reformuler le contenu et effectuer une revue linguistique. |
 | ATS Validation Service | Appliquer des contrôles prévisibles écrits en TypeScript. |
+| Matching Module | Autoriser l'accès au CV du compte, préparer son texte sans coordonnées et appeler le service IA interne. |
+| Service IA de formation | Exécuter le calcul SBERT et renvoyer le score de similarité et les métiers proches, sans persistance. |
+
+Le module Matching utilise `POST /api/matching/analyze` dans l'API NestJS. Il compare les textes complets par similarité cosinus SBERT et suggère les cinq intitulés les plus proches parmi la taxonomie de l'analyseur d'origine. Ce score n'est ni un score ATS ni une prédiction d'embauche. Le navigateur ne contacte jamais le service Python. Le contrat et les limites fonctionnelles sont détaillés dans `JOBORA_Backend/README.md`.
+
+Pour démarrer les trois processus nécessaires au matching et suivre un test guidé (création d'un CV, sauvegarde MongoDB, analyse), consultez `MATCHING_QUICKSTART.md` puis lancez `npm run matching:start` depuis la racine. Aucun service RAG ni identifiant Gemini/Groq n'est requis pour ce parcours.
 
 ## 4. Différence entre MongoDB et ChromaDB
 
@@ -152,7 +165,7 @@ Lorsque le candidat clique sur **Générer mon CV ATS** :
 
 1. React envoie `POST /api/cvs/:id/generate` avec le JWT.
 2. Le backend vérifie le token et récupère le `userId` authentifié.
-3. `CvService` lit le CV correspondant à la fois à `id` et `userId`.
+3. `CvService` lit le CV correspondant à la fois à `id` et `userId` depuis SQLite.
 4. Les métadonnées techniques et toutes les données personnelles directes (`personalInformation` : nom, email, téléphone, adresse, LinkedIn et GitHub) sont retirées avant Gemini.
 5. Le `RagService` NestJS construit une requête contenant le poste ciblé, les thèmes ATS et les compétences déclarées, puis l'envoie au service FastAPI local.
 6. Le service Python transforme cette requête en embedding avec MiniLM.
@@ -165,7 +178,7 @@ Lorsque le candidat clique sur **Générer mon CV ATS** :
 13. `AtsValidationService` exécute les contrôles déterministes.
 14. Un second appel Gemini effectue une revue de la qualité linguistique.
 15. Le score déterministe et la revue Gemini sont fusionnés.
-16. Le CV est sauvegardé dans MongoDB avec le statut `generated`.
+16. Le CV est sauvegardé dans SQLite avec le statut `generated`.
 17. React affiche le résultat, les problèmes et les suggestions.
 
 ## 7. Fonctionnement du RAG
@@ -850,7 +863,7 @@ Les vérifications de présentation encore manuelles sont :
 
 ## 22. Scénario de démonstration enseignant
 
-1. Lancer MongoDB, le service RAG Python, NestJS et le frontend.
+1. Lancer le service RAG Python, NestJS et le frontend. SQLite est créé au démarrage du backend.
 2. Se connecter.
 3. Montrer la liste des CV et le CV complet de démonstration.
 4. Expliquer que ce CV est préchargé pour présenter un résultat complet.
@@ -939,3 +952,108 @@ Le service IA reste volontairement lié à `127.0.0.1`; il ne doit pas être exp
 Avec Device Guard, utilise `python -m uvicorn` et `python -m pip` plutôt que les exécutables
 directs. Si le service IA est arrêté, le backend renvoie un message explicite invitant à
 démarrer Ollama et le service.
+
+## Module Job Matcher (matching intelligent d'offres)
+
+Le module est accessible dans le frontend à `/app/job-matcher` et via l'API authentifiée
+`/api/job-matcher`. Il compare un CV existant à plusieurs offres et renvoie un classement
+explicable : score de compatibilité, compétences couvertes, compétences manquantes,
+points à renforcer et recommandations.
+
+```
+React (/app/job-matcher) → NestJS (/api/job-matcher) → FastAPI (127.0.0.1:8010) → Groq
+```
+
+Le navigateur n'appelle jamais FastAPI ni Groq. Le CV reste dans SQLite ; les coordonnées
+personnelles (e-mail, téléphone) sont retirées localement, puis seuls un profil structuré
+et les champs utiles des offres sont transmis au fournisseur IA. Les noms et le contenu
+professionnel peuvent encore figurer dans ce texte : ce n'est pas un anonymat complet.
+
+### Ports
+
+| Service | Port |
+| --- | ---: |
+| Skillora AI | 8000 |
+| RAG | 8001 |
+| Training AI | 8002 |
+| **Job Matcher AI** | **8010** |
+| API NestJS | 3000 |
+| Frontend Vite | 8443 |
+
+### Lancement local
+
+1. Installer et démarrer le service IA (voir `ai-service-JobMatcher/README.md`) :
+
+   ```powershell
+   npm run job-matcher-ai:setup:windows
+   npm run job-matcher-ai:dev
+   ```
+
+2. Configurer `JOBORA_Backend/.env` :
+
+   ```text
+   JOB_MATCHER_AI_SERVICE_URL=http://127.0.0.1:8010
+   JOB_MATCHER_AI_TIMEOUT_MS=120000
+   JOB_MATCHER_INTERNAL_TOKEN=<même secret que le service IA>
+   ```
+
+   Si `JOB_MATCHER_INTERNAL_TOKEN` est absent, le backend et le service IA réutilisent
+   `TRAINING_AI_INTERNAL_TOKEN`. `GROQ_API_KEY` doit être renseignée côté service IA
+   uniquement, jamais dans une variable `VITE_*`.
+
+3. Démarrer le backend puis le frontend :
+
+   ```powershell
+   npm run backend:dev
+   npm run frontend:dev
+   ```
+
+### API
+
+| Méthode | Route | Rôle |
+| --- | --- | --- |
+| POST | `/api/job-matcher/cv` | Analyser un CV possédé (`cvId`) et enregistrer son profil |
+| GET | `/api/job-matcher/profile/:cvId` | Relire le profil enregistré |
+| PUT | `/api/job-matcher/profile/:cvId` | Enregistrer les corrections du candidat |
+| GET | `/api/job-matcher/jobs` | Offres de démonstration + offres du compte |
+| POST | `/api/job-matcher/jobs` | Ajouter une offre collée (privée) |
+| POST | `/api/job-matcher/match` | Créer une session (`pending`) |
+| GET | `/api/job-matcher/status/:id` | Suivre `pending → processing → completed / failed` |
+| GET | `/api/job-matcher/results/:id` | Résultats classés (uniquement si terminé) |
+| GET | `/api/job-matcher/history` | Historique du compte |
+| DELETE | `/api/job-matcher/history/:id` | Supprimer une session possédée |
+
+L'import PDF réutilise `POST /api/matching/upload`, déjà éprouvé (PDF uniquement, 5 Mo).
+Chaque route est protégée par `JwtAuthGuard` ; le `userId` vient du JWT et toutes les
+recherches sont filtrées par propriétaire (CV, offre, session, résultats, historique).
+
+### Persistance
+
+Aucune nouvelle base ni MongoDB : les données passent par la table `app_records` existante.
+
+- `job_offers` : offres ajoutées par un utilisateur (`owner_id`) ;
+- `job_matcher_profiles` : profil structuré associé à un CV ;
+- `job_matcher_sessions` : session, instantané des offres, statut, résultats ou erreur.
+
+Les offres de démonstration sont des constantes du backend (`src/job-matcher/demo-jobs.ts`),
+jamais persistées, et toujours marquées `isDemo: true` dans l'interface (« Offre de
+démonstration »).
+
+### Score et limites
+
+Le score (0–100) combine compétences requises (40 %), compétences appréciées (15 %),
+expérience (20 %), séniorité (10 %) et proximité sémantique (15 %). Les critères inconnus
+sont exclus du dénominateur. Une offre sans signal exploitable n'est pas notée. Le score
+est indicatif et ne garantit ni entretien ni recrutement. Les explications sont produites
+par Groq mais ne peuvent pas modifier le score ni l'éligibilité, calculés de façon
+déterministe. Le module est documenté plus en détail dans
+`ai-service-JobMatcher/README.md`.
+
+### Vérification
+
+```powershell
+npm run job-matcher-ai:test
+npm run backend:test
+npm run frontend:test
+npm run build
+```
