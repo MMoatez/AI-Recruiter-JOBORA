@@ -8,7 +8,12 @@ import { PortfolioService } from "./portfolio.service"
 import { ThrottlerModule } from "@nestjs/throttler"
 
 @Module({
-  imports: [AuthModule, OllamaModule, ThrottlerModule, MongooseModule.forFeature([{ name: Portfolio.name, schema: PortfolioSchema }])],
+  imports: [
+    AuthModule,
+    OllamaModule,
+    ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 10 }]),
+    MongooseModule.forFeature([{ name: Portfolio.name, schema: PortfolioSchema }]),
+  ],
   controllers: [PortfolioController],
   providers: [PortfolioService],
 })

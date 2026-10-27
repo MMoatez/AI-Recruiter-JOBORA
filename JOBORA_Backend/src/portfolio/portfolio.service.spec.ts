@@ -12,7 +12,8 @@ jest.mock("pdf-parse", () => jest.fn())
 
 describe("PortfolioService", () => {
   const parsePdf = jest.mocked(pdfParse)
-  const ollama = { generateJson: jest.fn(), embed: jest.fn() }
+  const extractionJson = jest.fn()
+  const ollama = { generateJson: jest.fn(), generatePortfolioExtractionJson: extractionJson, embed: jest.fn() }
   const savedPortfolio = { _id: "portfolio-id", userId: "user-id" }
   const portfolios = {
     findOneAndUpdate: jest.fn(),
@@ -24,6 +25,7 @@ describe("PortfolioService", () => {
   beforeEach(() => {
     parsePdf.mockReset()
     ollama.generateJson.mockReset()
+    extractionJson.mockReset()
     ollama.embed.mockReset()
     portfolios.findOneAndUpdate.mockReset().mockReturnValue({ exec: jest.fn().mockResolvedValue(savedPortfolio) })
     portfolios.findOne.mockReset().mockReturnValue({
@@ -93,7 +95,7 @@ describe("PortfolioService", () => {
 
   it("extracts all portfolio sections sequentially, normalizes and validates them", async () => {
     const cvText = "Ada Lovelace Engineer ada@example.com University of London Example Ltd NestJS Engine TypeScript English Fluent Cloud Example 2024"
-    ollama.generateJson
+    extractionJson
       .mockResolvedValueOnce({
         fullName: "Ada Lovelace",
         title: "Engineer",
@@ -110,7 +112,7 @@ describe("PortfolioService", () => {
 
     const result = await service.extractFromCv(cvText)
 
-    expect(ollama.generateJson.mock.calls).toEqual([
+    expect(extractionJson.mock.calls).toEqual([
       [PORTFOLIO_SYSTEM_PROMPTS.identity, cvText],
       [PORTFOLIO_SYSTEM_PROMPTS.experiences, cvText],
       [PORTFOLIO_SYSTEM_PROMPTS.projects, cvText],
@@ -139,7 +141,7 @@ describe("PortfolioService", () => {
   })
 
   it("rejects extracted portfolio data that fails DTO validation", async () => {
-    ollama.generateJson
+    extractionJson
       .mockResolvedValueOnce({ email: "not-an-email" })
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({})
@@ -151,10 +153,10 @@ describe("PortfolioService", () => {
   })
 
   it("stops at the first failed Ollama call", async () => {
-    ollama.generateJson.mockRejectedValue(new Error("Ollama unavailable"))
+    extractionJson.mockRejectedValue(new Error("Ollama unavailable"))
 
     await expect(service.extractFromCv("CV text")).rejects.toThrow("Ollama unavailable")
-    expect(ollama.generateJson).toHaveBeenCalledTimes(1)
+    expect(extractionJson).toHaveBeenCalledTimes(1)
   })
 
   it("generates an about paragraph in French at temperature 0.3", async () => {
@@ -225,11 +227,12 @@ describe("PortfolioService", () => {
     ).mockResolvedValue(new ObjectId())
     const cvText = "Ada Lovelace ada@example.com University of London Example Ltd TypeScript. Additional portfolio source text for testing the PDF extraction flow."
     parsePdf.mockResolvedValue({ text: cvText } as Awaited<ReturnType<typeof pdfParse>>)
-    ollama.generateJson
+    extractionJson
       .mockResolvedValueOnce({ fullName: "Ada Lovelace", email: "ada@example.com", education: [{ school: "University of London" }] })
       .mockResolvedValueOnce({ experiences: [{ company: "Example Ltd" }] })
       .mockResolvedValueOnce({ projects: [] })
       .mockResolvedValueOnce({ skills: { languages: ["TypeScript"] } })
+    ollama.generateJson
       .mockResolvedValueOnce({ headline: "Développeuse spécialisée en TypeScript et technologies web modernes" })
       .mockResolvedValueOnce({ about: "J’ai étudié à University of London. Je connais TypeScript. J’ai travaillé chez Example Ltd." })
 
@@ -256,7 +259,8 @@ describe("PortfolioService", () => {
       }),
       { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true },
     )
-    expect(ollama.generateJson).toHaveBeenCalledTimes(6)
+    expect(extractionJson).toHaveBeenCalledTimes(4)
+    expect(ollama.generateJson).toHaveBeenCalledTimes(2)
   })
 
   it("syncs only extracted portfolio lists from the stored source CV", async () => {
@@ -267,7 +271,7 @@ describe("PortfolioService", () => {
       exec: jest.fn().mockResolvedValue(current),
     }
     portfolios.findOne.mockReturnValue(findQuery)
-    ollama.generateJson
+    extractionJson
       .mockResolvedValueOnce({ education: [{ school: "Nouvelle université" }] })
       .mockResolvedValueOnce({ experiences: [{ company: "Nouvelle entreprise" }] })
       .mockResolvedValueOnce({ projects: [{ name: "Nouveau projet" }] })

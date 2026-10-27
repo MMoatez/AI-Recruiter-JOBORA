@@ -10,6 +10,12 @@
 **/.env.*
 !**/.env.example
 JOBORA_Backend/.mongodb/
+JOBORA_Backend/finetuning/portfolio_extraction/prepared/
+JOBORA_Backend/finetuning/portfolio_extraction/output/
+JOBORA_Backend/finetuning/portfolio_extraction/merged-model/
+JOBORA_Backend/finetuning/portfolio_extraction/base-models/
+JOBORA_Backend/.venv-finetune-cpu/
+JOBORA_Backend/.hf-cache/
 JOBORA_Frontend/.figma/design-context/
 JOBORA_Frontend/.plugins/
 JOBORA_Frontend/.opencode-skills/

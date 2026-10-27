@@ -5,6 +5,8 @@ import { AuthModule } from "./auth/auth.module"
 import { CvModule } from "./cv/cv.module"
 import { EntretienModule } from "./entretien/entretien.module"
 import { LettreModule } from "./lettre/lettre.module"
+import { PortfolioModule } from "./portfolio/portfolio.module"
+import { PublicPortfolioModule } from "./portfolio/public-portfolio.module"
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { LettreModule } from "./lettre/lettre.module"
     CvModule,
     EntretienModule,
     LettreModule,
+    PortfolioModule,
+    PublicPortfolioModule,
   ],
 })
 export class AppModule {}

@@ -17,6 +17,7 @@ type OllamaEmbedResponse = {
 export class OllamaService {
   private readonly url: string
   private readonly model: string
+  private readonly portfolioExtractionModel: string
   private readonly embedUrl: string
   private readonly embedModel: string
 
@@ -26,6 +27,7 @@ export class OllamaService {
   ) {
     this.url = config.get("OLLAMA_URL", "http://localhost:11434/api/chat")
     this.model = config.get("OLLAMA_MODEL", "qwen2.5:3b")
+    this.portfolioExtractionModel = config.get("OLLAMA_PORTFOLIO_EXTRACTION_MODEL", this.model)
     this.embedUrl = new URL("/api/embed", this.url).toString()
     this.embedModel = config.get("OLLAMA_EMBED_MODEL", "nomic-embed-text")
   }
@@ -60,7 +62,16 @@ export class OllamaService {
     }
   }
 
-  async generateJson(systemPrompt: string, userPrompt: string, temperature = 0.1): Promise<unknown> {
+  async generatePortfolioExtractionJson(systemPrompt: string, userPrompt: string): Promise<unknown> {
+    return this.generateJson(systemPrompt, userPrompt, 0.1, this.portfolioExtractionModel)
+  }
+
+  async generateJson(
+    systemPrompt: string,
+    userPrompt: string,
+    temperature = 0.1,
+    model = this.model,
+  ): Promise<unknown> {
     let lastError: unknown
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -69,7 +80,7 @@ export class OllamaService {
           this.http.post<OllamaChatResponse>(
             this.url,
             {
-              model: this.model,
+              model,
               messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt },

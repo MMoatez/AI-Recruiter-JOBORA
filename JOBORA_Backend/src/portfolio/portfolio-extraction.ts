@@ -67,7 +67,7 @@ async function extractSection(
 ): Promise<Record<string, unknown>> {
   const startedAt = Date.now()
   try {
-    const result = await ollama.generateJson(systemPrompt, cvText)
+    const result = await ollama.generatePortfolioExtractionJson(systemPrompt, cvText)
     if (!result || typeof result !== "object" || Array.isArray(result)) {
       throw new BadGatewayException(`Ollama a retourné un objet invalide pour la section ${section}.`)
     }
