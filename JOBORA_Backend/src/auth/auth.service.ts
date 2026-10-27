@@ -1,42 +1,44 @@
 import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common"
 import { JwtService } from "@nestjs/jwt"
-import { InjectModel } from "@nestjs/mongoose"
 import { compare, hash } from "bcryptjs"
-import { Model } from "mongoose"
-import { User, UserDocument } from "../users/user.schema"
+import { randomUUID } from "node:crypto"
+import { DatabaseService } from "../database/database.service"
 import { LoginDto, RegisterDto } from "./dto/auth.dto"
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectModel(User.name) private readonly users: Model<UserDocument>,
+    private readonly database: DatabaseService,
     private readonly jwt: JwtService,
   ) {}
 
   async register(dto: RegisterDto) {
     const email = dto.email.toLowerCase()
-    if (await this.users.exists({ email })) throw new ConflictException("Un compte existe déjà avec cet email.")
-    const user = await this.users.create({
-      name: dto.name?.trim() || email.split("@")[0],
-      email,
-      passwordHash: await hash(dto.password, 12),
-    })
+    const user = { id: randomUUID(), name: dto.name?.trim() || email.split("@")[0], email, passwordHash: await hash(dto.password, 12) }
+    try {
+      this.database.connection.prepare("INSERT INTO users (id, name, email, password_hash, created_at) VALUES (?, ?, ?, ?, ?)")
+        .run(user.id, user.name, email, user.passwordHash, this.database.now())
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) throw new ConflictException("Un compte existe déjà avec cet email.")
+      throw error
+    }
     return this.createSession(user)
   }
 
   async login(dto: LoginDto) {
-    const user = await this.users.findOne({ email: dto.email.toLowerCase() }).select("+passwordHash")
+    const user = this.database.connection.prepare("SELECT id, name, email, password_hash AS passwordHash FROM users WHERE email = ? COLLATE NOCASE")
+      .get(dto.email.toLowerCase()) as { id: string; name: string; email: string; passwordHash: string } | undefined
     if (!user || !(await compare(dto.password, user.passwordHash))) throw new UnauthorizedException("Email ou mot de passe incorrect.")
     return this.createSession(user)
   }
 
   async currentUser(id: string) {
-    const user = await this.users.findById(id).select("name email").lean()
+    const user = this.database.connection.prepare("SELECT id, name, email FROM users WHERE id = ?").get(id) as { id: string; name: string; email: string } | undefined
     if (!user) throw new UnauthorizedException("Session invalide ou expirée.")
-    return { id: user._id.toString(), name: user.name, email: user.email }
+    return user
   }
 
-  private async createSession(user: UserDocument) {
+  private async createSession(user: { id: string; name: string; email: string }) {
     const payload = { sub: user.id, email: user.email }
     return {
       accessToken: await this.jwt.signAsync(payload),

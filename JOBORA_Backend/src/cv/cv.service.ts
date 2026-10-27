@@ -1,41 +1,49 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common"
-import { InjectModel } from "@nestjs/mongoose"
-import { Model } from "mongoose"
+import { DatabaseService } from "../database/database.service"
 import { AtsValidationService } from "./ats-validation.service"
-import { Cv, CvDocument } from "./cv.schema"
 import { CreateCvDto, RegenerateSectionDto, UpdateCvDto } from "./dto/cv.dto"
 import { GeminiService } from "./gemini.service"
 
 @Injectable()
 export class CvService {
   constructor(
-    @InjectModel(Cv.name) private readonly cvs: Model<CvDocument>,
+    private readonly database: DatabaseService,
     private readonly gemini: GeminiService,
     private readonly ats: AtsValidationService,
   ) {}
 
-  list(userId: string) { return this.cvs.find({ userId }).sort({ updatedAt: -1 }).lean() }
+  list(userId: string) {
+    return (this.database.connection.prepare("SELECT payload FROM cvs WHERE user_id = ? ORDER BY updated_at DESC").all(userId) as Array<{ payload: string }>)
+      .map((row) => this.database.parse((row as { payload: string }).payload))
+  }
 
   async get(userId: string, id: string) {
-    const cv = await this.cvs.findOne({ id, userId }).lean()
+    const row = this.database.connection.prepare("SELECT payload FROM cvs WHERE id = ? AND user_id = ?").get(id, userId) as { payload: string } | undefined
+    const cv = row ? this.database.parse(row.payload) : null
     if (!cv) throw new NotFoundException("CV introuvable.")
     return cv
   }
 
   async create(userId: string, dto: CreateCvDto) {
-    if (await this.cvs.exists({ id: dto.id })) throw new ConflictException("Ce CV existe déjà.")
-    return this.cvs.create({ ...dto, userId } as unknown as Cv)
-  }
-
-  async update(userId: string, id: string, dto: UpdateCvDto) {
-    const cv = await this.cvs.findOneAndUpdate({ id, userId }, { $set: { ...dto, id, userId } }, { new: true, runValidators: true })
-    if (!cv) throw new NotFoundException("CV introuvable.")
+    const now = this.database.now()
+    const cv = { ...dto, userId, createdAt: now, updatedAt: now }
+    try { this.database.connection.prepare("INSERT INTO cvs (id, user_id, title, payload, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .run(dto.id, userId, dto.title, JSON.stringify(cv), now, now) }
+    catch (error) { if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) throw new ConflictException("Ce CV existe déjà."); throw error }
     return cv
   }
 
+  async update(userId: string, id: string, dto: UpdateCvDto) {
+    const current = await this.get(userId, id)
+    const next = { ...current, ...dto, id, userId, updatedAt: this.database.now() }
+    this.database.connection.prepare("UPDATE cvs SET title = ?, payload = ?, updated_at = ? WHERE id = ? AND user_id = ?")
+      .run(next.title, JSON.stringify(next), next.updatedAt, id, userId)
+    return next
+  }
+
   async remove(userId: string, id: string) {
-    const result = await this.cvs.deleteOne({ id, userId })
-    if (!result.deletedCount) throw new NotFoundException("CV introuvable.")
+    const result = this.database.connection.prepare("DELETE FROM cvs WHERE id = ? AND user_id = ?").run(id, userId)
+    if (!result.changes) throw new NotFoundException("CV introuvable.")
     return { deleted: true }
   }
 
@@ -54,7 +62,7 @@ export class CvService {
       status: "generated",
       promptVersion: "CV_GENERATE_001_V7",
     }
-    return this.cvs.findOneAndUpdate({ id, userId }, { $set: next }, { new: true, runValidators: true })
+    return this.update(userId, id, next as never)
   }
 
   async validate(userId: string, id: string) {
@@ -77,19 +85,23 @@ export class CvService {
     if (!source) throw new NotFoundException("Section du CV introuvable.")
     const regenerated = await this.gemini.regenerateSection(dto.section, source, targetJob)
     const content = regenerated.content
+    const patch: Record<string, unknown> = {}
     if (dto.section === "summary") {
-      current.professionalSummary = content
+      patch.professionalSummary = content
     } else if (dto.section === "experience") {
       experiences[index] = { ...experiences[index], bulletPoints: content }
-      current.experiences = experiences
+      patch.experiences = experiences
     } else {
       projects[index] = { ...projects[index], description: content }
-      current.projects = projects
+      patch.projects = projects
+
     }
-    current.atsValidation = this.ats.validate(current as unknown as Parameters<AtsValidationService["validate"]>[0])
-    current.ragMetadata = regenerated.ragMetadata
-    current.promptVersion = "CV_GENERATE_001_V7"
-    return this.cvs.findOneAndUpdate({ id, userId }, { $set: current }, { new: true, runValidators: true })
+
+    const candidate = { ...this.toSafeCandidate(current), ...patch }
+    patch.atsValidation = this.ats.validate(candidate as unknown as Parameters<AtsValidationService["validate"]>[0])
+    patch.ragMetadata = regenerated.ragMetadata
+    patch.promptVersion = "CV_GENERATE_001_V7"
+    return this.update(userId, id, patch as never)
   }
 
   private toSafeCandidate(cv: Record<string, unknown>) {
@@ -101,9 +113,30 @@ export class CvService {
   private mergeGeneratedContent(candidate: Record<string, unknown>, generated: Record<string, unknown>) {
     const originals = <T extends Record<string, unknown>>(key: string) => Array.isArray(candidate[key]) ? candidate[key] as T[] : []
     const outputs = <T extends Record<string, unknown>>(key: string) => Array.isArray(generated[key]) ? generated[key] as T[] : []
-    const education = originals("education").map((item, index) => ({ ...item, description: String(outputs("education")[index]?.description ?? item.description ?? "") }))
-    const experiences = originals("experiences").map((item, index) => ({ ...item, bulletPoints: Array.isArray(outputs("experiences")[index]?.bulletPoints) ? outputs("experiences")[index].bulletPoints : item.bulletPoints ?? [] }))
-    const projects = originals("projects").map((item, index) => ({ ...item, description: String(outputs("projects")[index]?.description ?? item.description ?? "") }))
+    const findOutput = (item: Record<string, unknown>, values: Record<string, unknown>[], identityKeys: string[]) => {
+      const id = String(item.id ?? "").trim()
+      if (id) return values.find((value) => String(value.id ?? "").trim() === id)
+      const identity = (value: Record<string, unknown>) => identityKeys.map((key) => String(value[key] ?? "").trim().toLocaleLowerCase()).join("\u0000")
+      const sourceIdentity = identity(item)
+      if (!sourceIdentity.replace(/\u0000/g, "")) return undefined
+      const matches = values.filter((value) => identity(value) === sourceIdentity)
+      return matches.length === 1 ? matches[0] : undefined
+    }
+    const educationOutputs = outputs("education")
+    const experienceOutputs = outputs("experiences")
+    const projectOutputs = outputs("projects")
+    const education = originals("education").map((item) => {
+      const output = findOutput(item, educationOutputs, ["degree", "institution", "startDate", "endDate"])
+      return { ...item, description: String(output?.description ?? item.description ?? "") }
+    })
+    const experiences = originals("experiences").map((item) => {
+      const output = findOutput(item, experienceOutputs, ["jobTitle", "company", "startDate", "endDate"])
+      return { ...item, bulletPoints: Array.isArray(output?.bulletPoints) ? output.bulletPoints : item.bulletPoints ?? [] }
+    })
+    const projects = originals("projects").map((item) => {
+      const output = findOutput(item, projectOutputs, ["name"])
+      return { ...item, description: String(output?.description ?? item.description ?? "") }
+    })
     const allowedSkills = (Array.isArray(candidate.technicalSkills) ? candidate.technicalSkills : []).map(String)
     const proposedSkills = (Array.isArray(generated.technicalSkills) ? generated.technicalSkills : []).map(String)
     const technicalSkills = proposedSkills.filter((skill) => allowedSkills.some((allowed) => allowed.toLocaleLowerCase() === skill.toLocaleLowerCase()))

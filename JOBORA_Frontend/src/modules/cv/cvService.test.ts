@@ -22,7 +22,7 @@ Object.defineProperty(globalThis, "localStorage", {
   configurable: true,
 })
 Object.defineProperty(globalThis, "window", {
-  value: { setTimeout },
+  value: { setTimeout, location: { pathname: "/app/cv", replace: () => undefined } },
   configurable: true,
 })
 
@@ -33,7 +33,7 @@ const { parseGeminiCvResponse, requireGeminiKey } = await import(
 
 beforeEach(() => {
   localStorage.clear()
-  localStorage.setItem("ai-recruiter.session", JSON.stringify({ user: { id: "user_test" } }))
+  localStorage.setItem("ai-recruiter.session", JSON.stringify({ accessToken: "mock-access-token", user: { id: "user_test" } }))
 })
 
 test("1. creates a CV for the authenticated user", async () => {
@@ -178,4 +178,14 @@ test("13. adds the complete example beside an existing draft only once", async (
     secondLoad.some((item) => item.id === "cv_demo_fullstack"),
     false,
   )
+})
+test("14. rejects an expired backend session instead of silently saving locally", async () => {
+  localStorage.setItem("ai-recruiter.session", JSON.stringify({ accessToken: "a.b.c", user: { id: "user_test" } }))
+  Object.defineProperty(globalThis, "fetch", {
+    configurable: true,
+    value: async () => new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } }),
+  })
+
+  await assert.rejects(() => cvService.save(emptyCV()), /session a expiré/i)
+  assert.equal(localStorage.getItem("ai-recruiter.session"), null)
 })

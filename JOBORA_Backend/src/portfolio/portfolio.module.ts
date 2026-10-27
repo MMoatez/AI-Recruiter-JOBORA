@@ -1,18 +1,17 @@
 import { Module } from "@nestjs/common"
-import { MongooseModule } from "@nestjs/mongoose"
+import { ThrottlerModule } from "@nestjs/throttler"
 import { AuthModule } from "../auth/auth.module"
+import { DatabaseModule } from "../database/database.module"
 import { OllamaModule } from "../ollama/ollama.module"
 import { PortfolioController } from "./portfolio.controller"
-import { Portfolio, PortfolioSchema } from "./portfolio.schema"
 import { PortfolioService } from "./portfolio.service"
-import { ThrottlerModule } from "@nestjs/throttler"
 
 @Module({
   imports: [
     AuthModule,
+    DatabaseModule,
     OllamaModule,
     ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 10 }]),
-    MongooseModule.forFeature([{ name: Portfolio.name, schema: PortfolioSchema }]),
   ],
   controllers: [PortfolioController],
   providers: [PortfolioService],
