@@ -1,8 +1,9 @@
 const EXTRACTION_RULES =
-  "Utilise UNIQUEMENT ce qui est écrit dans le texte. N’invente rien. Si une info est absente, mets une chaîne vide ou un tableau vide. Réponds uniquement en JSON valide."
+  "[TASK:portfolio_extraction] Utilise UNIQUEMENT ce qui est écrit dans le texte. N’invente rien. Si une info est absente, mets une chaîne vide ou un tableau vide. Réponds uniquement en JSON valide."
 
 export const PORTFOLIO_SYSTEM_PROMPTS = {
   identity: `${EXTRACTION_RULES}
+[SECTION:identity]
 Extrais uniquement l’identité, les contacts, les liens, la présentation et les études.
 Schéma JSON exact :
 {"fullName":"string","title":"string","email":"string","phone":"string","location":"string","links":{"linkedin":"string","github":"string","website":"string"},"about":"string","education":[{"school":"string","degree":"string","field":"string","startYear":"string","endYear":"string"}]}
@@ -15,6 +16,7 @@ Sortie attendue :
 {"fullName":"Ada Lovelace","title":"Ingénieure logiciel","email":"ada@example.com","phone":"","location":"Londres","links":{"linkedin":"","github":"","website":""},"about":"","education":[{"school":"University of London","degree":"BSc","field":"Mathématiques","startYear":"1830","endYear":"1832"}]}`,
 
   experiences: `${EXTRACTION_RULES}
+[SECTION:experiences]
 Extrais uniquement les expériences professionnelles.
 Schéma JSON exact :
 {"experiences":[{"company":"string","role":"string","startDate":"string","endDate":"string","description":"string","technologies":["string"]}]}
@@ -25,6 +27,7 @@ Sortie attendue :
 {"experiences":[{"company":"Example Ltd","role":"Développeuse","startDate":"janvier 2022","endDate":"mars 2024","description":"Création d’API","technologies":["NestJS","PostgreSQL"]}]}`,
 
   projects: `${EXTRACTION_RULES}
+[SECTION:projects]
 Extrais uniquement les projets.
 Schéma JSON exact :
 {"projects":[{"name":"string","year":"string","description":"string","technologies":["string"]}]}
@@ -35,6 +38,7 @@ Sortie attendue :
 {"projects":[{"name":"Site météo","year":"2023","description":"Application web de prévisions","technologies":["React","TypeScript"]}]}`,
 
   skills: `${EXTRACTION_RULES}
+[SECTION:skills]
 Extrais uniquement les compétences, langues et certifications.
 Schéma JSON exact :
 {"skills":{"languages":["string"],"frameworks":["string"],"tools":["string"],"databases":["string"],"other":["string"]},"languages":[{"name":"string","level":"string"}],"certifications":[{"name":"string","issuer":"string","year":"string"}]}

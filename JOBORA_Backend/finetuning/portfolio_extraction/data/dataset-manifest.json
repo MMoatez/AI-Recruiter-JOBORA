@@ -1,0 +1,14 @@
+{
+  "synthetic": true,
+  "seed": 2026,
+  "train_cvs": 80,
+  "test_cvs": 20,
+  "train_examples": 320,
+  "test_examples": 80,
+  "sections": [
+    "identity",
+    "experiences",
+    "projects",
+    "skills"
+  ]
+}

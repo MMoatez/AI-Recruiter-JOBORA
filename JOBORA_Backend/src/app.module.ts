@@ -6,6 +6,8 @@ import { CvModule } from "./cv/cv.module"
 import { EntretienModule } from "./entretien/entretien.module"
 import { JobMatcherModule } from "./job-matcher/job-matcher.module"
 import { LettreModule } from "./lettre/lettre.module"
+import { PortfolioModule } from "./portfolio/portfolio.module"
+import { PublicPortfolioModule } from "./portfolio/public-portfolio.module"
 import { MatchingModule } from "./matching/matching.module"
 import { TrainingModule } from "./training/training.module"
 
@@ -18,6 +20,8 @@ import { TrainingModule } from "./training/training.module"
     EntretienModule,
     JobMatcherModule,
     LettreModule,
+    PortfolioModule,
+    PublicPortfolioModule,
     MatchingModule,
     TrainingModule,
   ],

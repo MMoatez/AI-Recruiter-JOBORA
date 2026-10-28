@@ -41,6 +41,20 @@ describe("OllamaService", () => {
     expect(post.mock.calls[0][1].options).toEqual({ temperature: 0.3 })
   })
 
+  it("uses the dedicated fine-tuned model only for portfolio extraction", async () => {
+    const post = jest.fn().mockReturnValue(of({ data: { message: { content: '{"projects":[]}' } } }))
+    const service = makeService(post, {
+      OLLAMA_MODEL: "general-model",
+      OLLAMA_PORTFOLIO_EXTRACTION_MODEL: "portfolio-extractor",
+    })
+
+    await service.generatePortfolioExtractionJson("system", "cv text")
+    await service.generateJson("system", "portfolio copy")
+
+    expect(post.mock.calls[0][1].model).toBe("portfolio-extractor")
+    expect(post.mock.calls[1][1].model).toBe("general-model")
+  })
+
   it("sends embedding requests to /api/embed with the configured embedding model", async () => {
     const post = jest.fn().mockReturnValue(of({ data: { embeddings: [[1, 0], [0, 1]] } }))
     const service = makeService(post, {
