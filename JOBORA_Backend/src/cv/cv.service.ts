@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common"
+import { randomUUID } from "node:crypto"
 import { DatabaseService } from "../database/database.service"
 import { AtsValidationService } from "./ats-validation.service"
 import { CreateCvDto, RegenerateSectionDto, UpdateCvDto } from "./dto/cv.dto"
@@ -16,6 +17,8 @@ export class CvService {
     return (this.database.connection.prepare("SELECT payload FROM cvs WHERE user_id = ? ORDER BY updated_at DESC").all(userId) as Array<{ payload: string }>)
       .map((row) => this.database.parse((row as { payload: string }).payload))
   }
+
+  private cvCollection() { return this.database.collection("cvs") }
 
   async get(userId: string, id: string) {
     const row = this.database.connection.prepare("SELECT payload FROM cvs WHERE id = ? AND user_id = ?").get(id, userId) as { payload: string } | undefined
@@ -96,12 +99,19 @@ export class CvService {
       patch.projects = projects
 
     }
-
+    
+<<<<<<< HEAD
+    current.atsValidation = this.ats.validate(current as unknown as Parameters<AtsValidationService["validate"]>[0])
+    current.ragMetadata = regenerated.ragMetadata
+    current.promptVersion = "CV_GENERATE_001_V7"
+    return this.update(userId, id, current as never)
+=======
     const candidate = { ...this.toSafeCandidate(current), ...patch }
     patch.atsValidation = this.ats.validate(candidate as unknown as Parameters<AtsValidationService["validate"]>[0])
     patch.ragMetadata = regenerated.ragMetadata
     patch.promptVersion = "CV_GENERATE_001_V7"
-    return this.update(userId, id, patch as never)
+    return this.cvs.findOneAndUpdate({ id, userId }, { $set: patch }, { new: true, runValidators: true })
+>>>>>>> origin/matching
   }
 
   private toSafeCandidate(cv: Record<string, unknown>) {
