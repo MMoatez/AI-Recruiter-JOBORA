@@ -1,4 +1,23 @@
-# JOBORA - Génération intelligente de CV ATS-Friendly
+
+<div align="center">
+
+# 🚀 JOBORA
+
+### AI-Powered Recruitment Platform
+
+**Votre carrière, propulsée par l'intelligence artificielle.**
+
+![JOBORA Banner](assets/jobora-banner.png)
+
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
+[![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs)](https://nestjs.com/)
+[![Python](https://img.shields.io/badge/Python-FastAPI-3776AB?logo=python)](https://fastapi.tiangolo.com/)
+[![AI](https://img.shields.io/badge/AI-LLM%20%7C%20RAG-purple)](#)
+[![Project](https://img.shields.io/badge/Project-ESPRIT-orange)](#)
+
+</div>
+
+---
 
 ## 1. Présentation du projet
 
@@ -10,6 +29,18 @@ Le projet est composé de deux applications :
 - `JOBORA_Backend` : API NestJS, authentification, stockage SQLite local, RAG, Gemini et validation ATS.
 
 L'objectif principal n'est pas de laisser l'IA inventer un CV. Gemini reformule uniquement les faits fournis par le candidat. Le candidat reste responsable du résultat final.
+
+### 🎥 Démonstration vidéo
+
+<div align="center">
+
+**Découvrez JOBORA en action !**
+
+[▶️ Regarder la vidéo de démonstration](https://drive.google.com/file/d/1LLupvpo9sHN3c-cwmj1EqxFSRGh5m5ut/view?usp=sharing)
+
+</div>
+
+---
 
 ## 2. Fonctionnalités principales
 
